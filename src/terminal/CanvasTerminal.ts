@@ -261,19 +261,8 @@ export class CanvasTerminal {
     if (this.mode === 'snake') {
       this.applyScanlines(ctx, w, h);
       this.applyFlicker(ctx, w, h, time);
-    } else if (this.mode === 'matrix') {
-      // Matrix: skip aperture grille to prevent blue-line artifacts
-      this.applyVignette(ctx, w, h);
-      this.applyScanlines(ctx, w, h);
-      // Chromatic aberration is expensive; skip frames to save ~67% cost.
-      if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
-        this.chromaticFrameCounter = 0;
-        this.applyChromaticAbberation(ctx, w, h);
-      }
-      this.applyNoise(ctx, w, h, time);
-      this.applyFlicker(ctx, w, h, time);
     } else {
-      // Terminal: full suite
+      // Terminal and matrix: full CRT suite
       this.applyVignette(ctx, w, h);
       this.applyScanlines(ctx, w, h);
       this.applyApertureGrille(ctx, w, h);
