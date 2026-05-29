@@ -1,4 +1,32 @@
 /**
+ * Config for per-effect tuning of the Matrix rain + CRT overlay.
+ * Pass a partial config to start() — missing fields use defaults.
+ */
+export interface MatrixConfig {
+  fadeAlpha?: number;      // 0.0–1.0  (default 0.05)
+  enableVignette?: boolean; // (default true)
+  enableScanlines?: boolean;// (default true)
+  enableAperture?: boolean;// (default true)
+  enableChromatic?: boolean;// (default true)
+  chromaticSkip?: number;  // frames to skip (default 2)
+  enableNoise?: boolean;   // (default true)
+  noiseCount?: number;     // pixels per frame (default 800)
+  enableFlicker?: boolean; // (default true)
+}
+
+const DEFAULT_CONFIG: Required<MatrixConfig> = {
+  fadeAlpha: 0.05,
+  enableVignette: true,
+  enableScanlines: true,
+  enableAperture: true,
+  enableChromatic: true,
+  chromaticSkip: 2,
+  enableNoise: true,
+  noiseCount: 800,
+  enableFlicker: true,
+};
+
+/**
  * Classic Matrix rain effect with pre-rendered streaks.
  *
  * Each drop's streak is baked into an offscreen canvas at spawn time.
@@ -16,14 +44,17 @@ export class MatrixRain {
   private drops: MatrixDrop[] = [];
   private charsLen = 0; // cached
 
+  private currentConfig: Required<MatrixConfig> = { ...DEFAULT_CONFIG };
+
   private readonly chars =
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
   private readonly fontSize = 20;
   private readonly density = 2.0;
   private readonly speedScale = 0.2;
 
-  start(w: number, h: number): void {
+  start(w: number, h: number, config?: MatrixConfig): void {
     this.active = true;
+    this.currentConfig = { ...DEFAULT_CONFIG, ...config };
     this.charsLen = this.chars.length;
 
     this.marginX = Math.round(w * 0.04);
@@ -51,11 +82,18 @@ export class MatrixRain {
     return this.active;
   }
 
+  /** Read-only config for the renderer to query which CRT effects to apply. */
+  getConfig(): Required<MatrixConfig> {
+    return this.currentConfig;
+  }
+
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     if (!this.active || this.drops.length === 0) return;
 
+    const cfg = this.currentConfig;
+
     // Fade overlay — use globalAlpha (faster than parsing rgba string)
-    ctx.globalAlpha = 0.05;
+    ctx.globalAlpha = cfg.fadeAlpha;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
     ctx.globalAlpha = 1.0;
@@ -120,7 +158,6 @@ export class MatrixRain {
       drop.chars[i] = this.chars[Math.floor(Math.random() * this.charsLen)];
     }
 
-    // Reuse the existing canvas — just resize and redraw
     drop.streakCanvas = this.buildStreakCanvas(drop.chars, drop.streakCanvas);
     drop.x = Math.floor(Math.random() * this.cols);
     drop.y = scatter
@@ -130,7 +167,7 @@ export class MatrixRain {
   }
 
   /** Bake a streak's characters into an offscreen canvas.  If an existing
-   *  canvas is passed, it is resized and reused to avoid GC churn. */
+   *  canvas is passed, it is resized and redrawn to avoid GC churn. */
   private buildStreakCanvas(chars: string[], existing?: HTMLCanvasElement): HTMLCanvasElement {
     const len = chars.length;
     const fs = this.fontSize;

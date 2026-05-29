@@ -149,9 +149,9 @@ export class CanvasTerminal {
   }
 
   /** Start Matrix Rain screensaver immediately. */
-  startMatrixRain(): void {
+  startMatrixRain(config?: import('../animations/MatrixRain').MatrixConfig): void {
     this.mode = 'matrix';
-    this.matrixRain.start(this.width, this.height);
+    this.matrixRain.start(this.width, this.height, config);
     this.dirty = true;
   }
 
@@ -265,8 +265,22 @@ export class CanvasTerminal {
     if (this.mode === 'snake') {
       this.applyScanlines(ctx, w, h);
       this.applyFlicker(ctx, w, h, time);
+    } else if (this.mode === 'matrix') {
+      // Matrix: per-effect config from MatrixRain
+      const cfg = this.matrixRain.getConfig();
+      if (cfg.enableVignette) this.applyVignette(ctx, w, h);
+      if (cfg.enableScanlines) this.applyScanlines(ctx, w, h);
+      if (cfg.enableAperture) this.applyApertureGrille(ctx, w, h);
+      if (cfg.enableChromatic) {
+        if (++this.chromaticFrameCounter > cfg.chromaticSkip) {
+          this.chromaticFrameCounter = 0;
+          this.applyChromaticAbberation(ctx, w, h);
+        }
+      }
+      if (cfg.enableNoise) this.applyNoise(ctx, w, h, time);
+      if (cfg.enableFlicker) this.applyFlicker(ctx, w, h, time);
     } else {
-      // Terminal and matrix: full CRT suite
+      // Terminal: full CRT suite
       this.applyVignette(ctx, w, h);
       this.applyScanlines(ctx, w, h);
       this.applyApertureGrille(ctx, w, h);
