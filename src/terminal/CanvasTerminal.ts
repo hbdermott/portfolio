@@ -286,43 +286,42 @@ export class CanvasTerminal {
   }
 
   /**
-   * Analog noise: dense random static across the screen.
+   * Analog noise: sparse random static across the screen.
    */
   private applyNoise(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
-    const seed = Math.floor(time / 40);
-    const noiseCount = 3000; // lots of specks
+    const seed = Math.floor(time / 80);
+    const noiseCount = 800;
 
     for (let i = 0; i < noiseCount; i++) {
       const px = Math.floor(Math.abs(Math.sin(i * 12.9898 + seed * 78.233) * w));
       const py = Math.floor(Math.abs(Math.cos(i * 43.123 + seed * 37.719) * h));
-      // Stronger bright specks + darker dead pixels
-      const isBright = Math.random() > 0.6;
+      const isBright = Math.random() > 0.7;
       ctx.fillStyle = isBright
-        ? 'rgba(200, 255, 200, 0.45)'
-        : 'rgba(0, 0, 0, 0.40)';
-      ctx.fillRect(px, py, 1 + (Math.random() > 0.9 ? 1 : 0), 1);
+        ? 'rgba(200, 255, 200, 0.18)'
+        : 'rgba(0, 0, 0, 0.15)';
+      ctx.fillRect(px, py, 1, 1);
     }
   }
 
   /**
-   * Flicker: pronounced whole-screen brightness modulation + roll bar.
+   * Flicker: subtle whole-screen brightness modulation + occasional roll bar.
    */
   private applyFlicker(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
-    // Brightness pulse (mains hum feel) — swings between dimming 8% and 22%
-    const flicker = 0.5 + 0.5 * Math.sin(time * 0.006);
-    const alpha = 0.08 + flicker * 0.14; // 0.08–0.22 range
+    // Slow brightness pulse (mains hum feel)
+    const flicker = 0.5 + 0.5 * Math.sin(time * 0.004);
+    const alpha = 0.03 + flicker * 0.05; // 0.03–0.08 range
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
 
-    // Horizontal "roll bar" — a dark band sweeping down the screen
-    const rollPos = (time * 0.12) % (h * 1.8);
+    // Horizontal "roll bar" — a faint dark band sweeping down
+    const rollPos = (time * 0.08) % (h * 1.5);
     if (rollPos < h) {
-      const grad = ctx.createLinearGradient(0, rollPos - 18, 0, rollPos + 18);
+      const grad = ctx.createLinearGradient(0, rollPos - 12, 0, rollPos + 12);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.5, 'rgba(0,0,0,0.35)');
+      grad.addColorStop(0.5, 'rgba(0,0,0,0.12)');
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, rollPos - 18, w, 36);
+      ctx.fillRect(0, rollPos - 12, w, 24);
     }
   }
 

@@ -1,8 +1,0 @@
-{
-  "watch": ["src", "index.html", "vite.config.ts"],
-  "ext": "ts,html,glsl,json",
-  "ignore": ["src/**/*.test.ts", "node_modules", "dist"],
-  "exec": "vite",
-  "delay": 300,
-  "clear": true
-}
