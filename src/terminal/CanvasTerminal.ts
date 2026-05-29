@@ -36,6 +36,14 @@ export class CanvasTerminal {
   private readonly errorColor = '#ff3333';
   private readonly bgColor = '#000000';
 
+  // ─── CRT effect intensity scalers (0.0 = off, 1.0 = full) ───
+  private readonly VIGNETTE_STRENGTH   = 1.0;
+  private readonly SCANLINE_STRENGTH   = 0.6;  // reduce if text is hard to read
+  private readonly APERTURE_STRENGTH   = 1.0;
+  private readonly CHROMATIC_STRENGTH = 0.8;
+  private readonly NOISE_STRENGTH      = 0.7;
+  private readonly FLICKER_STRENGTH    = 0.5;
+
   private charWidth = 9.6; // approximate, measured later
   private maxVisibleLines = 0;
   private scrollOffset = 0;
@@ -193,38 +201,42 @@ export class CanvasTerminal {
   }
 
   /**
-   * Vignette: heavy darkening at edges simulating CRT tube curvature.
+   * Vignette: darkening at edges simulating CRT tube curvature.
    */
   private applyVignette(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const s = this.VIGNETTE_STRENGTH;
+    if (s <= 0) return;
     const gradient = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.9);
     gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.35)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+    gradient.addColorStop(0.6, `rgba(0, 0, 0, ${0.35 * s})`);
+    gradient.addColorStop(1, `rgba(0, 0, 0, ${0.85 * s})`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
   }
 
   /**
-   * Scanlines: horizontal black lines with slight brightness variation (interlacing).
+   * Scanlines: horizontal black lines simulating CRT raster.
    */
   private applyScanlines(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const s = this.SCANLINE_STRENGTH;
+    if (s <= 0) return;
     ctx.globalCompositeOperation = 'source-over';
 
-    // Primary scanlines: every 3rd pixel, thick dark lines
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.50)';
+    // Primary scanlines: every 3rd pixel
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.18 * s})`;
     for (let y = 0; y < h; y += 3) {
       ctx.fillRect(0, y, w, 1);
     }
 
     // Secondary "interlace" lines
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.08 * s})`;
     for (let y = 1; y < h; y += 6) {
       ctx.fillRect(0, y, w, 1);
     }
 
     // Horizontal glow bleed between lines (green phosphor bleed)
     ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = 'rgba(51, 255, 51, 0.06)';
+    ctx.fillStyle = `rgba(51, 255, 51, ${0.04 * s})`;
     for (let y = 2; y < h; y += 3) {
       ctx.fillRect(0, y, w, 1);
     }
@@ -232,33 +244,33 @@ export class CanvasTerminal {
   }
 
   /**
-   * Aperture grille / shadow mask: heavy vertical RGB stripes.
+   * Aperture grille / shadow mask: vertical RGB stripes.
    */
   private applyApertureGrille(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const s = this.APERTURE_STRENGTH;
+    if (s <= 0) return;
     ctx.globalCompositeOperation = 'overlay';
     const stripeWidth = 3; // 1px R + 1px G + 1px B
     for (let x = 0; x < w; x += stripeWidth) {
-      // Red stripe
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.18)';
+      ctx.fillStyle = `rgba(255, 0, 0, ${0.18 * s})`;
       ctx.fillRect(x, 0, 1, h);
-      // Green stripe
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.22)';
+      ctx.fillStyle = `rgba(0, 255, 0, ${0.22 * s})`;
       ctx.fillRect(x + 1, 0, 1, h);
-      // Blue stripe
-      ctx.fillStyle = 'rgba(0, 0, 255, 0.18)';
+      ctx.fillStyle = `rgba(0, 0, 255, ${0.18 * s})`;
       ctx.fillRect(x + 2, 0, 1, h);
     }
     ctx.globalCompositeOperation = 'source-over';
   }
 
   /**
-   * Chromatic aberration: slight RGB channel offset at screen edges.
+   * Chromatic aberration: RGB channel offset at screen edges.
    */
   private applyChromaticAbberation(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    // Get the current canvas content
+    const s = this.CHROMATIC_STRENGTH;
+    if (s <= 0) return;
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
-    const offset = 3; // pixels to shift
+    const offset = Math.round(3 * s);
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -267,15 +279,13 @@ export class CanvasTerminal {
           Math.pow((x - w / 2) / (w / 2), 2) +
           Math.pow((y - h / 2) / (h / 2), 2)
         );
-        const strength = dist * 0.6; // stronger at edges
+        const strength = dist * 0.6 * s;
 
         if (strength > 0.05) {
-          // Red channel shifted left
           const rx = Math.min(w - 1, Math.max(0, x + Math.round(offset * strength)));
           const ri = (y * w + rx) * 4;
           data[i] = data[ri]; // R
 
-          // Blue channel shifted right
           const bx = Math.min(w - 1, Math.max(0, x - Math.round(offset * strength)));
           const bi = (y * w + bx) * 4;
           data[i + 2] = data[bi + 2]; // B
@@ -286,39 +296,41 @@ export class CanvasTerminal {
   }
 
   /**
-   * Analog noise: sparse random static across the screen.
+   * Analog noise: random static specks across the screen.
    */
   private applyNoise(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
+    const s = this.NOISE_STRENGTH;
+    if (s <= 0) return;
     const seed = Math.floor(time / 80);
-    const noiseCount = 800;
+    const noiseCount = Math.round(1200 * s);
 
     for (let i = 0; i < noiseCount; i++) {
       const px = Math.floor(Math.abs(Math.sin(i * 12.9898 + seed * 78.233) * w));
       const py = Math.floor(Math.abs(Math.cos(i * 43.123 + seed * 37.719) * h));
-      const isBright = Math.random() > 0.7;
+      const isBright = Math.random() > 0.6;
       ctx.fillStyle = isBright
-        ? 'rgba(200, 255, 200, 0.18)'
-        : 'rgba(0, 0, 0, 0.15)';
+        ? `rgba(200, 255, 200, ${0.22 * s})`
+        : `rgba(0, 0, 0, ${0.18 * s})`;
       ctx.fillRect(px, py, 1, 1);
     }
   }
 
   /**
-   * Flicker: subtle whole-screen brightness modulation + occasional roll bar.
+   * Flicker: whole-screen brightness modulation + occasional roll bar.
    */
   private applyFlicker(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
-    // Slow brightness pulse (mains hum feel)
+    const s = this.FLICKER_STRENGTH;
+    if (s <= 0) return;
     const flicker = 0.5 + 0.5 * Math.sin(time * 0.004);
-    const alpha = 0.03 + flicker * 0.05; // 0.03–0.08 range
+    const alpha = (0.03 + flicker * 0.05) * s; // 0.03–0.08 range scaled
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
 
-    // Horizontal "roll bar" — a faint dark band sweeping down
     const rollPos = (time * 0.08) % (h * 1.5);
     if (rollPos < h) {
       const grad = ctx.createLinearGradient(0, rollPos - 12, 0, rollPos + 12);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.5, 'rgba(0,0,0,0.12)');
+      grad.addColorStop(0.5, `rgba(0,0,0,${0.12 * s})`);
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = grad;
       ctx.fillRect(0, rollPos - 12, w, 24);
