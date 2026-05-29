@@ -319,6 +319,20 @@ export class CanvasTerminal {
       if (this.booting) return;
       this.lastActivity = performance.now();
 
+      // Ctrl+C interrupts current input, prints ^C, and returns to prompt
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        if (this.inputBuffer.length > 0) {
+          this.lines.push({ text: `${this.promptText} ${this.inputBuffer}^C`, type: 'prompt' });
+        } else {
+          this.lines.push({ text: '^C', type: 'output' });
+        }
+        this.inputBuffer = '';
+        this.dirty = true;
+        this.keyboardSound.play();
+        return;
+      }
+
       if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return;
 
       this.keyboardSound.play();

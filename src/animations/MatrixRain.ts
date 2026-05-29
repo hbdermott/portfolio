@@ -1,17 +1,36 @@
 /**
  * Matrix rain screensaver.
- * Each column has a "drop" position that increments each frame,
- * drawing a trail of characters.
+ *
+ * Each column spawns a single drop head that falls downward
+ * one row per frame.  A semi-transparent black overlay is drawn
+ * every frame, so old characters fade into a green trail behind
+ * the bright head.  When a drop exits the bottom it respawns at
+ * a random height above the screen so the rain never syncs up.
  */
 export class MatrixRain {
   private active = false;
+  /** Drop row position for every column (can be negative = above screen) */
   private drops: number[] = [];
-  private readonly chars = 'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
+  /** Random start offset so columns don't all begin at the same time */
+  private delays: number[] = [];
+  private readonly chars =
+    'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
   private readonly fontSize = 16;
+  private cols = 0;
 
   start(columns: number): void {
     this.active = true;
-    this.drops = new Array(columns).fill(1);
+    this.cols = columns;
+    // Every column starts at a random negative row so the rain
+    // is already in full swing when the screensaver appears.
+    this.drops = new Array(columns)
+      .fill(0)
+      .map(() => -(Math.random() * 40 + 5));
+    // Staggered speed variation: some columns advance every frame,
+    // others skip a frame occasionally.
+    this.delays = new Array(columns)
+      .fill(0)
+      .map(() => Math.random());
   }
 
   stop(): void {
@@ -23,47 +42,48 @@ export class MatrixRain {
   }
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    if (!this.active || this.drops.length === 0) return;
+    if (!this.active) return;
 
-    // Fade the entire screen slightly to create trails
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+    const cols = this.cols;
+    const fs = this.fontSize;
+
+    // 1. Slightly darken the whole screen so previous characters
+    //    become a fading green trail.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
     ctx.fillRect(0, 0, w, h);
 
-    ctx.font = `${this.fontSize}px monospace`;
+    ctx.font = `${fs}px monospace`;
     ctx.textBaseline = 'top';
 
-    const cols = this.drops.length;
-
+    // 2. Draw each falling drop.
     for (let i = 0; i < cols; i++) {
-      const char = this.chars[Math.floor(Math.random() * this.chars.length)];
-      const x = i * this.fontSize;
-      const y = this.drops[i] * this.fontSize;
+      // Some columns advance slower than others for visual variety.
+      if (Math.random() < this.delays[i]) continue;
 
-      // Bright head, dimming trail
-      if (y < h) {
-        ctx.fillStyle = '#fff';
+      const x = i * fs;
+      const row = Math.floor(this.drops[i]);
+      const y = row * fs;
+
+      // Only draw if on-screen (plus a small margin so the very top
+      // head doesn't pop in out of nowhere).
+      if (y >= -fs && y < h + fs) {
+        const char = this.chars[Math.floor(Math.random() * this.chars.length)];
+
+        // Head glows bright white-green.
+        ctx.fillStyle = '#ccffcc';
+        ctx.shadowColor = '#33ff33';
+        ctx.shadowBlur = 6;
         ctx.fillText(char, x, y);
+        ctx.shadowBlur = 0;
       }
 
-      // Dimmer previous characters in the trail
-      for (let t = 1; t <= 8; t++) {
-        const trailY = y - t * this.fontSize;
-        if (trailY >= 0 && trailY < h) {
-          const alpha = Math.max(0, 1 - t / 6);
-          ctx.fillStyle = `rgba(0, 255, 70, ${alpha})`;
-          ctx.fillText(
-            this.chars[Math.floor(Math.random() * this.chars.length)],
-            x,
-            trailY
-          );
-        }
+      // 3. Advance drop.  Once it leaves the bottom by a fair margin
+      //    respawn it somewhere above the screen so the rain loops
+      //    continuously without ever syncing up.
+      this.drops[i] += 0.5 + Math.random() * 0.7; // variable fall speed
+      if (this.drops[i] * fs > h + 60) {
+        this.drops[i] = -(Math.random() * 50 + 10);
       }
-
-      // Advance drop
-      if (y > h && Math.random() > 0.98) {
-        this.drops[i] = 0;
-      }
-      this.drops[i]++;
     }
   }
 }
