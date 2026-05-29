@@ -14,7 +14,6 @@ export class Desk {
   }
 
   private createDeskTop(): void {
-    // Main tabletop
     const topGeometry = new THREE.BoxGeometry(1.8, 0.04, 0.9);
     const topMaterial = new THREE.MeshStandardMaterial({
       color: 0x3d2817,
@@ -26,24 +25,6 @@ export class Desk {
     top.castShadow = true;
     top.receiveShadow = true;
     this.group.add(top);
-
-    // Edge trim (slightly darker)
-    const edgeGeometry = new THREE.BoxGeometry(1.82, 0.02, 0.02);
-    const edgeMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2a1b0f,
-      roughness: 0.7,
-      metalness: 0.05,
-    });
-
-    // Front edge
-    const frontEdge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-    frontEdge.position.set(0, 0.77, 0.45);
-    this.group.add(frontEdge);
-
-    // Back edge
-    const backEdge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-    backEdge.position.set(0, 0.77, -0.45);
-    this.group.add(backEdge);
   }
 
   private createLegs(): void {
