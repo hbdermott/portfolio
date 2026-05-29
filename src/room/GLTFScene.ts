@@ -23,7 +23,7 @@ export class GLTFScene {
   private readonly PROJ_FLIP_V = false;
   private readonly PROJ_FLIP_U = true;
   private readonly PROJ_SWAP_AXES = false;
-  private readonly PROJ_BEZEL_PADDING = 0.05;
+  private readonly PROJ_BEZEL_PADDING = -0.05;
 
   constructor(container: HTMLElement, terminal: CanvasTerminal) {
     this.terminal = terminal;

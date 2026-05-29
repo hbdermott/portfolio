@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hunter Dermott - Terminal Portfolio</title>
+  <link rel="stylesheet" href="/src/styles/crt.css">
   <style>
     body {
       margin: 0;
@@ -41,6 +42,10 @@
 </head>
 <body>
   <div id="canvas-container"></div>
+  <!-- CRT WebGL shader overlay (transparent, on top of 3D canvas) -->
+  <canvas id="crt-shader-canvas" style="position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:10;"></canvas>
+  <!-- CSS CRT overlay: scanlines, aperture grille, noise, flicker -->
+  <div id="crt-overlay"></div>
   <input type="text" id="terminal-input-capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
   <script type="module" src="/src/main.ts"></script>
 </body>

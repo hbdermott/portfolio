@@ -2,14 +2,13 @@
    CRT OVERLAY - Scanlines + aperture grille + noise
    ============================================================ */
 #crt-overlay {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
   z-index: 100;
-  border-radius: inherit;
   /* Multi-layer screen texture */
   background:
     /* Horizontal scanlines */
@@ -115,47 +114,11 @@
   100% { opacity: 1; }
 }
 
-/* Slow ambient flicker on screen */
-#screen-glass {
-  animation: screen-flicker 12s infinite;
-  box-shadow:
-    inset 0 0 60px rgba(0,0,0,0.9),
-    inset 0 0 120px rgba(0,0,0,0.5),
-    /* Very subtle green phosphor glow */
-    0 0 80px rgba(51, 255, 51, 0.015);
-}
-
+/* Slow ambient flicker on the whole viewport */
 @keyframes screen-flicker {
   0%, 97%, 100% { opacity: 1; }
   98% { opacity: 0.97; }
   99% { opacity: 0.99; }
-}
-
-/* ============================================================
-   TERMINAL PHOSPHOR EFFECTS
-   ============================================================ */
-#terminal {
-  /* Multi-layer phosphor glow on text */
-  text-shadow:
-    /* Tight core glow */
-    0 0 2px rgba(51, 255, 51, 0.8),
-    /* Mid blur */
-    0 0 6px rgba(51, 255, 51, 0.4),
-    /* Wide bloom */
-    0 0 12px rgba(51, 255, 51, 0.15);
-}
-
-/* Cursor uses block style via caret */
-.terminal-input {
-  /* Make caret thick like a block */
-  caret-color: #33ff33;
-}
-
-/* Selection glows like phosphor persistence */
-.terminal-input::selection {
-  background: rgba(51, 255, 51, 0.3);
-  color: #ccffcc;
-  text-shadow: 0 0 4px #33ff33;
 }
 
 /* Power-on warm-up state */
