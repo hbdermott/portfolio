@@ -6,18 +6,36 @@
   height: 100%;
   pointer-events: none;
   z-index: 100;
-  /* Scanlines */
+  /* Horizontal scanlines */
   background:
     repeating-linear-gradient(
       0deg,
-      rgba(0, 0, 0, 0.15) 0px,
-      rgba(0, 0, 0, 0.15) 1px,
+      rgba(0, 0, 0, 0.2) 0px,
+      rgba(0, 0, 0, 0.2) 1px,
       transparent 1px,
-      transparent 2px
+      transparent 3px
     );
   border-radius: inherit;
-  /* Subtle screen noise texture */
-  opacity: 0.6;
+  opacity: 0.7;
+}
+
+/* Subtle vertical aperture grille lines */
+#crt-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.03) 0px,
+      rgba(0, 0, 0, 0.03) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  pointer-events: none;
 }
 
 #crt-shader-canvas {
@@ -58,30 +76,40 @@
 
 @keyframes flicker {
   0% { opacity: 1; }
-  25% { opacity: 0.92; }
+  25% { opacity: 0.88; }
   50% { opacity: 1; }
-  75% { opacity: 0.96; }
+  75% { opacity: 0.94; }
   100% { opacity: 1; }
 }
 
 /* Occasional screen-wide flicker */
 #screen-container {
-  animation: screen-flicker 8s infinite;
+  animation: screen-flicker 10s infinite;
 }
 
 @keyframes screen-flicker {
-  0%, 95%, 100% { opacity: 1; }
-  96% { opacity: 0.98; }
-  97% { opacity: 1; }
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.97; }
   98% { opacity: 0.99; }
-  99% { opacity: 1; }
+  99% { opacity: 0.98; }
 }
 
-/* Screen edge glow */
+/* Screen edge glow - phosphor bleed */
 #screen-container {
   box-shadow:
-    inset 0 0 100px rgba(0,0,0,0.8),
-    inset 0 0 20px rgba(0,0,0,0.9),
-    /* Subtle green ambient glow from screen */
-    0 0 50px rgba(51, 255, 51, 0.03);
+    inset 0 0 80px rgba(0,0,0,0.9),
+    inset 0 0 150px rgba(0,0,0,0.6),
+    inset 0 0 40px rgba(0,0,0,0.95),
+    /* Subtle green phosphor glow around edges */
+    0 0 60px rgba(51, 255, 51, 0.02);
+}
+
+/* Phosphor dot pitch simulation */
+#terminal {
+  /* RGB subpixel hinting effect */
+  text-shadow: 
+    0.5px 0 0 rgba(255, 0, 0, 0.1),
+    -0.5px 0 0 rgba(0, 255, 0, 0.1),
+    0 0.5px 0 rgba(0, 0, 255, 0.1),
+    0 0 4px rgba(51, 255, 51, 0.6);
 }
