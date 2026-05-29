@@ -19,9 +19,11 @@ export class GLTFScene {
   // FLIP_V: true to flip vertically if text appears upside-down.
   // FLIP_U: true to flip horizontally if text appears mirrored.
   // SWAP_AXES: true if the screen surface is rotated 90° in the model.
+  // BEZEL_PADDING: fraction of screen to leave as black bezel (0 = edge-to-edge, 0.1 = 10% bezel on each side)
   private readonly PROJ_FLIP_V = false;
-  private readonly PROJ_FLIP_U = false;
+  private readonly PROJ_FLIP_U = true;
   private readonly PROJ_SWAP_AXES = false;
+  private readonly PROJ_BEZEL_PADDING = 0.05;
 
   constructor(container: HTMLElement, terminal: CanvasTerminal) {
     this.terminal = terminal;
@@ -298,6 +300,13 @@ export class GLTFScene {
       vOffset = (1.0 - vScale) / 2.0;
     }
 
+    // Apply bezel padding: shrink content inward, leaving black space at edges
+    const bezel = this.PROJ_BEZEL_PADDING;
+    uScale *= (1.0 - 2.0 * bezel);
+    vScale *= (1.0 - 2.0 * bezel);
+    uOffset += bezel;
+    vOffset += bezel;
+
     // Generate planar UVs
     const newUvs = new Float32Array(positions.count * 2);
 
@@ -331,6 +340,7 @@ export class GLTFScene {
       vScale: vScale.toFixed(3),
       uOffset: uOffset.toFixed(3),
       vOffset: vOffset.toFixed(3),
+      bezel: bezel.toFixed(3),
     });
   }
 
