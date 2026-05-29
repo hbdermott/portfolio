@@ -23,12 +23,13 @@ export class MatrixRain {
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
   private readonly fontSize = 14;
   private readonly density = 0.8;
+  private speedScale = 0.45; // global multiplier; 0.45 = slow / cinematic
 
-  start(w: number, h: number): void {
+  start(w: number, h: number, speedScale = 0.45): void {
     this.active = true;
+    this.speedScale = speedScale;
 
     // Safe area: inset from edges so drops don't draw into the CRT bezel.
-    // These margins match roughly the bezel padding used in the 3D projection.
     this.marginX = Math.round(w * 0.04);
     this.marginY = Math.round(h * 0.04);
     this.safeW = w - this.marginX * 2;
@@ -78,14 +79,19 @@ export class MatrixRain {
         // Skip off-screen characters (safe area only)
         if (py < this.marginY - fs || py > this.marginY + this.safeH) continue;
 
+        // Brightness fades linearly from the head (white) to the tail end (dark green).
+        const progress = i / drop.chars.length; // 0 at head, 1 at tail end
+        const intensity = Math.max(0.06, 1 - progress);
+
         if (i === 0) {
-          // Head: bright white-green
-          ctx.fillStyle = '#e6ffe6';
+          // Head: pure bright white
+          ctx.fillStyle = '#ffffff';
         } else {
-          // Trail: green that fades with distance from head
-          const fade = 1 - i / drop.chars.length;
-          const g = Math.floor(180 + 75 * fade); // 180-255
-          ctx.fillStyle = `rgb(0, ${g}, 0)`;
+          // Trail: white-green near head, pure green mid, dark green at tail
+          const g = Math.floor(255 * intensity);
+          // Slight red/blue tint near the head for a white-green glow
+          const wb = Math.max(0, Math.floor((intensity - 0.5) * 300));
+          ctx.fillStyle = `rgb(${wb}, ${g}, ${wb})`;
         }
 
         ctx.fillText(drop.chars[i], this.marginX + drop.x * fs, py);
@@ -110,7 +116,7 @@ export class MatrixRain {
       y: scatter
         ? Math.random() * (this.rows + length) - length // anywhere on or above screen
         : -length, // start just above the top
-      speed: Math.random() * 1.2 + 0.4, // 0.4-1.6 rows/frame
+      speed: (Math.random() * 1.0 + 0.3) * this.speedScale, // 0.3-1.3 * scale
       chars,
     };
   }
