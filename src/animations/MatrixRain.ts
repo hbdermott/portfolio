@@ -19,8 +19,8 @@ const DEFAULT_CONFIG: Required<MatrixConfig> = {
   enableVignette: true,
   enableScanlines: true,
   enableAperture: true,
-  enableChromatic: true,
-  chromaticSkip: 2,
+  enableChromatic: false,
+  chromaticSkip: 0,
   enableNoise: true,
   noiseCount: 800,
   enableFlicker: true,
@@ -49,8 +49,8 @@ export class MatrixRain {
   private readonly chars =
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
   private readonly fontSize = 20;
-  private readonly density = 2.0;
-  private readonly speedScale = 0.2;
+  private readonly density = 5;
+  private readonly speedScale = 0.1;
 
   start(w: number, h: number, config?: MatrixConfig): void {
     this.active = true;

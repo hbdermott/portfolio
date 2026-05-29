@@ -50,6 +50,9 @@ export class CanvasTerminal {
   private readonly NOISE_STRENGTH      = 1;
   private readonly FLICKER_STRENGTH    = 0.3;
 
+  // Global kill-switch for chromatic aberration (major perf cost)
+  private enableChromaticGlobal = true;
+
   // Performance: only apply chromatic aberration every N frames
   private chromaticFrameCounter = 0;
   private readonly CHROMATIC_FRAME_SKIP = 2; // run every 3rd frame
@@ -80,8 +83,9 @@ export class CanvasTerminal {
   private readonly SHUTDOWN_CLOSE_MS = 300;
   private readonly SHUTDOWN_TOTAL_MS = 4500;
 
-  constructor(commandParser: CommandParser) {
+  constructor(commandParser: CommandParser, enableChromatic = true) {
     this.commandParser = commandParser;
+    this.enableChromaticGlobal = enableChromatic;
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
@@ -271,7 +275,7 @@ export class CanvasTerminal {
       if (cfg.enableVignette) this.applyVignette(ctx, w, h);
       if (cfg.enableScanlines) this.applyScanlines(ctx, w, h);
       if (cfg.enableAperture) this.applyApertureGrille(ctx, w, h);
-      if (cfg.enableChromatic) {
+      if (this.enableChromaticGlobal && cfg.enableChromatic) {
         if (++this.chromaticFrameCounter > cfg.chromaticSkip) {
           this.chromaticFrameCounter = 0;
           this.applyChromaticAbberation(ctx, w, h);
@@ -288,9 +292,11 @@ export class CanvasTerminal {
       const skipExpensive = this.booting;
       if (!skipExpensive) {
         // Chromatic aberration is expensive; skip frames to save ~67% cost.
-        if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
-          this.chromaticFrameCounter = 0;
-          this.applyChromaticAbberation(ctx, w, h);
+        if (this.enableChromaticGlobal) {
+          if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+            this.chromaticFrameCounter = 0;
+            this.applyChromaticAbberation(ctx, w, h);
+          }
         }
         this.applyNoise(ctx, w, h, time);
       }

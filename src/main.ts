@@ -17,8 +17,12 @@ function main(): void {
     linuxEmulator.getCommands()
   );
 
+  // Global chromatic-aberration kill-switch via URL: ?nochromatic=1
+  const params = new URLSearchParams(window.location.search);
+  const enableChromatic = !params.has('nochromatic');
+
   // Create canvas-based terminal
-  const terminal = new CanvasTerminal(commandParser);
+  const terminal = new CanvasTerminal(commandParser, enableChromatic);
   portfolioCommands.bindTerminal(terminal);
 
   // Create 3D scene with GLTF model
