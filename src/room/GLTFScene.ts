@@ -22,7 +22,7 @@ export class GLTFScene {
   // BEZEL_PADDING: fraction of screen to leave as black bezel (0 = edge-to-edge, 0.1 = 10% bezel on each side)
   private readonly PROJ_FLIP_V = false;
   private readonly PROJ_FLIP_U = true;
-  private readonly PROJ_SWAP_AXES = false;
+  private readonly PROJ_SWAP_AXES = false;  
   private readonly PROJ_BEZEL_PADDING = -0.05;
 
   constructor(container: HTMLElement, terminal: CanvasTerminal) {
@@ -40,7 +40,7 @@ export class GLTFScene {
       0.01,
       100
     );
-    this.camera.position.set(2, 0.5, 0);
+    this.camera.position.set(0, 0.5, 2);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({

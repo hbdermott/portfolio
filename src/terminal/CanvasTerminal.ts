@@ -34,15 +34,15 @@ export class CanvasTerminal {
   private readonly textColor = '#33ff33';
   private readonly dimColor = '#1a8a1a';
   private readonly errorColor = '#ff3333';
-  private readonly bgColor = '#000000';
+  private readonly bgColor = '#444444';
 
   // ─── CRT effect intensity scalers (0.0 = off, 1.0 = full) ───
-  private readonly VIGNETTE_STRENGTH   = 1.0;
-  private readonly SCANLINE_STRENGTH   = 0.6;  // reduce if text is hard to read
-  private readonly APERTURE_STRENGTH   = 1.0;
-  private readonly CHROMATIC_STRENGTH = 0.8;
-  private readonly NOISE_STRENGTH      = 0.7;
-  private readonly FLICKER_STRENGTH    = 0.5;
+  private readonly VIGNETTE_STRENGTH   = 0.6;
+  private readonly SCANLINE_STRENGTH   = 0.7;  // reduce if text is hard to read
+  private readonly APERTURE_STRENGTH   = 0.3;
+  private readonly CHROMATIC_STRENGTH = 1.5;
+  private readonly NOISE_STRENGTH      = 0;
+  private readonly FLICKER_STRENGTH    = 0.8;
 
   private charWidth = 9.6; // approximate, measured later
   private maxVisibleLines = 0;
@@ -119,7 +119,7 @@ export class CanvasTerminal {
 
     // ─── CRT post-processing effects ───
     this.applyVignette(ctx, w, h);
-    this.applyScanlines(ctx, w, h);
+    this.applyScanlines(ctx, w, h, time);
     this.applyApertureGrille(ctx, w, h);
     this.applyChromaticAbberation(ctx, w, h);
     this.applyNoise(ctx, w, h, time);
@@ -216,29 +216,33 @@ export class CanvasTerminal {
 
   /**
    * Scanlines: horizontal black lines simulating CRT raster.
+   * Scrolling vertically to avoid a static/laggy look.
    */
-  private applyScanlines(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  private applyScanlines(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
     const s = this.SCANLINE_STRENGTH;
     if (s <= 0) return;
     ctx.globalCompositeOperation = 'source-over';
 
+    // Fast vertical drift so scanlines never feel frozen
+    const drift = (time * 0.06) % 3;
+
     // Primary scanlines: every 3rd pixel
     ctx.fillStyle = `rgba(0, 0, 0, ${0.18 * s})`;
-    for (let y = 0; y < h; y += 3) {
-      ctx.fillRect(0, y, w, 1);
+    for (let y = -drift; y < h; y += 3) {
+      if (y >= 0) ctx.fillRect(0, y, w, 1);
     }
 
     // Secondary "interlace" lines
     ctx.fillStyle = `rgba(0, 0, 0, ${0.08 * s})`;
-    for (let y = 1; y < h; y += 6) {
-      ctx.fillRect(0, y, w, 1);
+    for (let y = 1 - drift; y < h; y += 6) {
+      if (y >= 0) ctx.fillRect(0, y, w, 1);
     }
 
     // Horizontal glow bleed between lines (green phosphor bleed)
     ctx.globalCompositeOperation = 'screen';
     ctx.fillStyle = `rgba(51, 255, 51, ${0.04 * s})`;
-    for (let y = 2; y < h; y += 3) {
-      ctx.fillRect(0, y, w, 1);
+    for (let y = 2 - drift; y < h; y += 3) {
+      if (y >= 0) ctx.fillRect(0, y, w, 1);
     }
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -321,12 +325,14 @@ export class CanvasTerminal {
   private applyFlicker(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
     const s = this.FLICKER_STRENGTH;
     if (s <= 0) return;
-    const flicker = 0.5 + 0.5 * Math.sin(time * 0.004);
-    const alpha = (0.03 + flicker * 0.05) * s; // 0.03–0.08 range scaled
+    // Fast brightness pulse (~4Hz feel) so it never looks frozen
+    const flicker = 0.5 + 0.5 * Math.sin(time * 0.025);
+    const alpha = (0.02 + flicker * 0.04) * s;
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
 
-    const rollPos = (time * 0.08) % (h * 1.5);
+    // Fast roll bar sweep
+    const rollPos = (time * 0.35) % (h * 1.5);
     if (rollPos < h) {
       const grad = ctx.createLinearGradient(0, rollPos - 12, 0, rollPos + 12);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
