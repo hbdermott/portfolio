@@ -208,11 +208,9 @@ export class GLTFScene {
     const texture = this.terminal.getTexture();
     texture.colorSpace = THREE.SRGBColorSpace;
 
-    // Fix model UV mapping: rotate 90° counter-clockwise and flip horizontally
-    // The model's screen UVs are rotated and mirrored relative to the canvas
-    texture.rotation = Math.PI / 2;
-    texture.center.set(0.5, 0.5);
-    texture.repeat.set(-1, 1);
+    // GLTF uses top-left UV origin; Three.js defaults to bottom-left.
+    // flipY=false aligns the texture so text appears right-side up.
+    texture.flipY = false;
     texture.needsUpdate = true;
 
     const material = new THREE.MeshStandardMaterial({

@@ -26,11 +26,11 @@ export class CanvasTerminal {
   private dirty = true;
 
   // Layout constants - sized to fit the 3D monitor screen
-  private readonly width = 480;
-  private readonly height = 360;
-  private readonly fontSize = 10;
-  private readonly lineHeight = 13;
-  private readonly padding = 14;
+  private readonly width = 320;
+  private readonly height = 240;
+  private readonly fontSize = 7;
+  private readonly lineHeight = 9;
+  private readonly padding = 10;
   private readonly textColor = '#33ff33';
   private readonly dimColor = '#1a8a1a';
   private readonly errorColor = '#ff3333';
