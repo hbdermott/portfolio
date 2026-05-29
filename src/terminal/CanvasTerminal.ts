@@ -41,8 +41,8 @@ export class CanvasTerminal {
   private readonly SCANLINE_STRENGTH   = 0.7;  // reduce if text is hard to read
   private readonly APERTURE_STRENGTH   = 0.3;
   private readonly CHROMATIC_STRENGTH = 1.5;
-  private readonly NOISE_STRENGTH      = 0;
-  private readonly FLICKER_STRENGTH    = 0.8;
+  private readonly NOISE_STRENGTH      = 1;
+  private readonly FLICKER_STRENGTH    = 0.3;
 
   private charWidth = 9.6; // approximate, measured later
   private maxVisibleLines = 0;
@@ -297,17 +297,24 @@ export class CanvasTerminal {
 
   /**
    * Analog noise: random static specks across the screen.
+   * Uses Math.random() for uniform distribution to avoid edge-clustering artifacts.
    */
   private applyNoise(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
     const s = this.NOISE_STRENGTH;
     if (s <= 0) return;
     const seed = Math.floor(time / 80);
     const noiseCount = Math.round(1200 * s);
+    const margin = 4; // keep noise away from edges
 
     for (let i = 0; i < noiseCount; i++) {
-      const px = Math.floor(Math.abs(Math.sin(i * 12.9898 + seed * 78.233) * w));
-      const py = Math.floor(Math.abs(Math.cos(i * 43.123 + seed * 37.719) * h));
-      const isBright = Math.random() > 0.6;
+      // Seeded deterministic brightness so it shimmers each frame
+      const hash = Math.abs(Math.sin(i * 12.9898 + seed * 78.233));
+      const isBright = hash > 0.4;
+
+      // Uniform random position (no edge clustering)
+      const px = margin + Math.floor(Math.random() * (w - margin * 2));
+      const py = margin + Math.floor(Math.random() * (h - margin * 2));
+
       ctx.fillStyle = isBright
         ? `rgba(200, 255, 200, ${0.22 * s})`
         : `rgba(0, 0, 0, ${0.18 * s})`;
