@@ -155,8 +155,6 @@ export class GLTFScene {
         // Find the monitor glass/screen mesh
         this.findMonitorScreen(model);
 
-        // Add a debug box to see the model bounds
-        this.addDebugBox(box, scale, model.position);
       },
       (progress) => {
         if (progress.total > 0) {
@@ -168,30 +166,6 @@ export class GLTFScene {
         console.error('Error loading GLTF model:', error);
       }
     );
-  }
-
-  private addDebugBox(box: THREE.Box3, scale: number, offset: THREE.Vector3): void {
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const debugGeo = new THREE.BoxGeometry(
-      size.x * scale,
-      size.y * scale,
-      size.z * scale
-    );
-    const debugMat = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const debugMesh = new THREE.Mesh(debugGeo, debugMat);
-    debugMesh.position.set(
-      center.x * scale + offset.x,
-      center.y * scale + offset.y,
-      center.z * scale + offset.z
-    );
-    this.scene.add(debugMesh);
-    console.log('Debug wireframe box added');
   }
 
   private findMonitorScreen(model: THREE.Group): void {
@@ -233,15 +207,21 @@ export class GLTFScene {
   private applyTerminalTexture(mesh: THREE.Mesh): void {
     const texture = this.terminal.getTexture();
     texture.colorSpace = THREE.SRGBColorSpace;
+
+    // Fix model UV mapping: rotate 90° counter-clockwise and flip horizontally
+    // The model's screen UVs are rotated and mirrored relative to the canvas
+    texture.rotation = Math.PI / 2;
+    texture.center.set(0.5, 0.5);
+    texture.repeat.set(-1, 1);
     texture.needsUpdate = true;
 
     const material = new THREE.MeshStandardMaterial({
       map: texture,
-      emissive: 0x112211,
+      emissive: 0x0a1a0a,
       emissiveMap: texture,
-      emissiveIntensity: 0.5,
-      roughness: 0.2,
-      metalness: 0.1,
+      emissiveIntensity: 0.4,
+      roughness: 0.25,
+      metalness: 0.05,
       side: THREE.FrontSide,
     });
 
