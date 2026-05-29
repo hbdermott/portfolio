@@ -146,7 +146,7 @@ export class GLTFScene {
 
   private findMonitorScreen(model: THREE.Group): void {
     let foundScreen = false;
-    const names = ['glass', 'screen', 'monitor', 'display', 'object_7', 'object_1'];
+    const names = ['glass', 'screen', 'monitor', 'display', 'object_9', 'object_7', 'object_1'];
 
     model.traverse((child) => {
       if (child instanceof THREE.Mesh && !foundScreen) {
