@@ -91,13 +91,13 @@ export class CanvasTerminal {
     }
 
     if (this.dirty) {
-      this.render();
+      this.render(time);
       this.texture.needsUpdate = true;
       this.dirty = false;
     }
   }
 
-  private render(): void {
+  private render(time: number): void {
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;
@@ -106,6 +106,18 @@ export class CanvasTerminal {
     ctx.fillStyle = this.bgColor;
     ctx.fillRect(0, 0, w, h);
 
+    // ─── Terminal content ───
+    this.renderContent(ctx);
+
+    // ─── CRT post-processing effects ───
+    this.applyVignette(ctx, w, h);
+    this.applyScanlines(ctx, w, h);
+    this.applyApertureGrille(ctx, w, h);
+    this.applyNoise(ctx, w, h, time);
+    this.applyFlicker(ctx, w, h, time);
+  }
+
+  private renderContent(ctx: CanvasRenderingContext2D): void {
     // Calculate visible line range
     const totalLines = this.lines.length + 1; // +1 for input line
     let startLine = Math.max(0, totalLines - this.maxVisibleLines);
@@ -124,7 +136,7 @@ export class CanvasTerminal {
       ctx.fillStyle = this.getColorForType(line.type);
       // Apply phosphor glow effect
       ctx.shadowColor = ctx.fillStyle;
-      ctx.shadowBlur = 4;
+      ctx.shadowBlur = 6;
       ctx.fillText(line.text, this.padding, y);
       ctx.shadowBlur = 0;
       y += this.lineHeight;
@@ -137,7 +149,7 @@ export class CanvasTerminal {
       // Draw prompt
       ctx.fillStyle = this.textColor;
       ctx.shadowColor = this.textColor;
-      ctx.shadowBlur = 4;
+      ctx.shadowBlur = 6;
       ctx.fillText(this.promptText + ' ', this.padding, y);
       ctx.shadowBlur = 0;
 
@@ -163,7 +175,7 @@ export class CanvasTerminal {
           } else {
             ctx.fillStyle = this.textColor;
             ctx.shadowColor = this.textColor;
-            ctx.shadowBlur = 4;
+            ctx.shadowBlur = 6;
             ctx.fillText(char, charX, y);
             ctx.shadowBlur = 0;
           }
@@ -177,28 +189,103 @@ export class CanvasTerminal {
         }
       }
     }
-
-    // Apply scanline overlay
-    this.drawScanlines(ctx, w, h);
   }
 
-  private drawScanlines(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+  /**
+   * Vignette: darkens corners to simulate CRT tube curvature and light falloff.
+   */
+  private applyVignette(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const gradient = ctx.createRadialGradient(w / 2, h / 2, w * 0.35, w / 2, h / 2, w * 0.85);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.2)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  /**
+   * Scanlines: horizontal black lines with slight brightness variation (interlacing).
+   */
+  private applyScanlines(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Primary scanlines: every 3rd pixel, 1px thick, fairly dark
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
     for (let y = 0; y < h; y += 3) {
       ctx.fillRect(0, y, w, 1);
     }
 
-    // Subtle horizontal RGB stripes (aperture grille simulation)
-    ctx.globalCompositeOperation = 'overlay';
-    for (let y = 0; y < h; y += 3) {
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.02)';
+    // Secondary "interlace" lines: every other primary line is slightly brighter
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+    for (let y = 1; y < h; y += 6) {
       ctx.fillRect(0, y, w, 1);
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.03)';
-      ctx.fillRect(0, y + 1, w, 1);
-      ctx.fillStyle = 'rgba(0, 0, 255, 0.02)';
-      ctx.fillRect(0, y + 2, w, 1);
+    }
+
+    // Horizontal glow bleed between lines (subtle green tint in gaps)
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = 'rgba(51, 255, 51, 0.015)';
+    for (let y = 2; y < h; y += 3) {
+      ctx.fillRect(0, y, w, 1);
     }
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /**
+   * Aperture grille / shadow mask: vertical RGB stripes simulating CRT phosphor triads.
+   */
+  private applyApertureGrille(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    ctx.globalCompositeOperation = 'overlay';
+    const stripeWidth = 3; // 1px R + 1px G + 1px B
+    for (let x = 0; x < w; x += stripeWidth) {
+      // Red stripe
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.035)';
+      ctx.fillRect(x, 0, 1, h);
+      // Green stripe
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.045)';
+      ctx.fillRect(x + 1, 0, 1, h);
+      // Blue stripe
+      ctx.fillStyle = 'rgba(0, 0, 255, 0.035)';
+      ctx.fillRect(x + 2, 0, 1, h);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /**
+   * Analog noise: sparse random green-tinted pixels.
+   */
+  private applyNoise(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
+    // Seeded-ish random from time so noise shimmers each frame
+    const seed = Math.floor(time / 80);
+    const noiseCount = 600; // number of noise specks
+    ctx.fillStyle = 'rgba(51, 255, 51, 0.12)';
+
+    for (let i = 0; i < noiseCount; i++) {
+      const px = Math.floor(Math.abs(Math.sin(i * 12.9898 + seed * 78.233) * w));
+      const py = Math.floor(Math.abs(Math.cos(i * 43.123 + seed * 37.719) * h));
+      ctx.fillRect(px, py, 1, 1);
+    }
+  }
+
+  /**
+   * Flicker: very subtle whole-screen brightness modulation + occasional roll bar.
+   */
+  private applyFlicker(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
+    // Slow brightness pulse (mains hum ~50/60Hz feel)
+    const flicker = 0.5 + 0.5 * Math.sin(time * 0.004);
+    const alpha = 0.02 + flicker * 0.02; // 0.02–0.04 range
+    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.fillRect(0, 0, w, h);
+
+    // Occasional horizontal "roll bar" — a faint dark band sweeping down
+    const rollPos = (time * 0.08) % (h * 1.5);
+    if (rollPos < h) {
+      const grad = ctx.createLinearGradient(0, rollPos - 10, 0, rollPos + 10);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.5, 'rgba(0,0,0,0.08)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, rollPos - 10, w, 20);
+    }
   }
 
   private getColorForType(type: string): string {
