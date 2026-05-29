@@ -334,20 +334,15 @@ export class CanvasTerminal {
   private renderShutdown(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
     const elapsed = time - this.shutdownTime;
 
-    // Phase 1: show content with CRT flicker (first 900ms)
+    // Phase 1: show content (first 900ms) — no flicker, just a calm pause
     if (elapsed < this.SHUTDOWN_SHOW_MS) {
       ctx.fillStyle = this.bgColor;
       ctx.fillRect(0, 0, w, h);
       this.renderContent(ctx);
-
-      // Brightness flicker — like a dying CRT tube
-      const flicker = Math.sin(elapsed * 0.025) * 0.04 + 0.04;
-      ctx.fillStyle = `rgba(255, 255, 255, ${flicker})`;
-      ctx.fillRect(0, 0, w, h);
       return;
     }
 
-    // Phase 2: white bars close from top and bottom
+    // Phase 2: black bars close from top and bottom
     const closeElapsed = elapsed - this.SHUTDOWN_SHOW_MS;
     if (closeElapsed < this.SHUTDOWN_CLOSE_MS) {
       const p = closeElapsed / this.SHUTDOWN_CLOSE_MS;
@@ -358,18 +353,25 @@ export class CanvasTerminal {
       ctx.fillRect(0, 0, w, h);
       this.renderContent(ctx);
 
-      // Top and bottom collapsing white bars
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 16;
+      // Top and bottom collapsing black bars
+      ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, w, barH);           // top bar growing down
       ctx.fillRect(0, h - barH, w, barH);    // bottom bar growing up
-      ctx.shadowBlur = 0;
 
-      // CRT scanlines over the white bars
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+      // Subtle scanlines over the black bars (dark gray so they're visible)
+      ctx.fillStyle = 'rgba(30, 30, 30, 0.4)';
       for (let y = 0; y < h; y += 2) {
         ctx.fillRect(0, y, w, 1);
+      }
+
+      // White horizontal flash line when bars nearly meet
+      const gap = h - barH * 2;
+      if (gap < 8 && gap > 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(0, h / 2 - 1, w, 2);
+        ctx.shadowBlur = 0;
       }
 
       // Slight horizontal squeeze as bars meet
