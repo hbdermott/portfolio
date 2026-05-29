@@ -113,10 +113,18 @@ export class CanvasTerminal {
     this.dirty = false;
   }
 
-  /** Inject a command as if the user typed it. */
+  /** Inject a command as if the user typed it.
+   * Interrupts any active mode (matrix / snake) and returns to terminal first. */
   injectCommand(cmd: string): void {
-    if (this.mode !== 'terminal') return;
     this.lastActivity = performance.now();
+
+    // Interrupt active special modes before running the command
+    if (this.mode === 'matrix') {
+      this.stopMatrixRain();
+    } else if (this.mode === 'snake') {
+      this.exitSnake();
+    }
+
     this.inputBuffer = cmd;
     this.dirty = true;
     this.executeCommand();
@@ -220,22 +228,17 @@ export class CanvasTerminal {
       this.renderGlitch(ctx, w, h);
     }
 
-    // CRT effects (skip expensive ones in matrix / snake)
-    if (this.mode === 'matrix') {
-      this.applyScanlines(ctx, w, h);
-      this.applyFlicker(ctx, w, h, time);
-    } else if (this.mode !== 'snake') {
-      this.applyVignette(ctx, w, h);
-      this.applyScanlines(ctx, w, h);
-      this.applyApertureGrille(ctx, w, h);
-      // Chromatic aberration is expensive; skip frames to save ~67% cost.
-      if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
-        this.chromaticFrameCounter = 0;
-        this.applyChromaticAbberation(ctx, w, h);
-      }
-      this.applyNoise(ctx, w, h, time);
-      this.applyFlicker(ctx, w, h, time);
+    // CRT effects — applied to ALL modes (matrix, snake, terminal)
+    this.applyVignette(ctx, w, h);
+    this.applyScanlines(ctx, w, h);
+    this.applyApertureGrille(ctx, w, h);
+    // Chromatic aberration is expensive; skip frames to save ~67% cost.
+    if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+      this.chromaticFrameCounter = 0;
+      this.applyChromaticAbberation(ctx, w, h);
     }
+    this.applyNoise(ctx, w, h, time);
+    this.applyFlicker(ctx, w, h, time);
   }
 
   private renderGlitch(ctx: CanvasRenderingContext2D, w: number, h: number): void {

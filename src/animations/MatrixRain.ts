@@ -79,7 +79,7 @@ export class MatrixRain {
         // Skip off-screen characters (safe area only)
         if (py < this.marginY - fs || py > this.marginY + this.safeH) continue;
 
-        // Brightness fades linearly from the head (white) to the tail end (dark green).
+        // Brightness fades linearly from the head (white) to the end of the tail.
         const progress = i / drop.chars.length; // 0 at head, 1 at tail end
         const intensity = Math.max(0.06, 1 - progress);
 

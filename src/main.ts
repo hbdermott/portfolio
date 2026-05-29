@@ -4,7 +4,7 @@ import { LinuxEmulator } from './commands/LinuxEmulator';
 import { FileSystem } from './commands/FileSystem';
 import { CanvasTerminal } from './terminal/CanvasTerminal';
 import { GLTFScene } from './room/GLTFScene';
-import { CommandMenu } from './ui/CommandMenu';
+import { CommandMenu, type CommandGroup } from './ui/CommandMenu';
 
 function main(): void {
   // Initialize command system
@@ -31,12 +31,25 @@ function main(): void {
   const gltfScene = new GLTFScene(container, terminal);
   gltfScene.start();
 
-  // Command menu overlay
-  const allCommands = [
-    'about', 'projects', 'experience', 'skills', 'contact',
-    'matrix', 'glitch', 'snake', 'clear', 'help',
+  // Command menu overlay — grouped by category with color coding
+  const commandGroups: CommandGroup[] = [
+    {
+      name: 'Portfolio',
+      color: '#33ff33',
+      commands: ['about', 'projects', 'experience', 'skills', 'contact', 'help'],
+    },
+    {
+      name: 'Effects & Games',
+      color: '#ffaa00',
+      commands: ['matrix', 'glitch', 'snake', 'clear'],
+    },
+    {
+      name: 'Linux',
+      color: '#8888ff',
+      commands: ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'touch', 'rm', 'echo', 'whoami', 'date', 'uname'],
+    },
   ];
-  new CommandMenu(allCommands, (cmd) => terminal.injectCommand(cmd));
+  new CommandMenu(commandGroups, (cmd) => terminal.injectCommand(cmd));
 
   console.log('CRT Terminal Portfolio initialized');
 }

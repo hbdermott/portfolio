@@ -133,7 +133,8 @@ export class SnakeGame {
     const cellW = w / this.gridW;
     const cellH = h / this.gridH;
 
-    ctx.fillStyle = '#000';
+    // Match terminal CRT background so CRT effects blend consistently
+    ctx.fillStyle = '#444444';
     ctx.fillRect(0, 0, w, h);
 
     // Grid

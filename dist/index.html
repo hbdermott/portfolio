@@ -81,6 +81,21 @@
       pointer-events: none;
       overflow: hidden;
     }
+    .cmd-group-label {
+      width: 100%;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 4px 0 2px 0;
+      opacity: 0.85;
+    }
+    .cmd-divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 6px 0;
+    }
     .cmd-btn {
       background: rgba(51, 255, 51, 0.08);
       color: #33ff33;
@@ -90,11 +105,29 @@
       font-size: 13px;
       cursor: pointer;
       border-radius: 3px;
-      transition: background 0.15s;
+      transition: background 0.15s, transform 0.1s;
       white-space: nowrap;
     }
     .cmd-btn:hover {
       background: rgba(51, 255, 51, 0.25);
+      transform: translateY(-1px);
+    }
+    /* Color-coded groups */
+    .cmd-btn[data-group="Effects & Games"] {
+      color: #ffaa00;
+      border-color: rgba(255, 170, 0, 0.35);
+      background: rgba(255, 170, 0, 0.08);
+    }
+    .cmd-btn[data-group="Effects & Games"]:hover {
+      background: rgba(255, 170, 0, 0.22);
+    }
+    .cmd-btn[data-group="Linux"] {
+      color: #8888ff;
+      border-color: rgba(136, 136, 255, 0.35);
+      background: rgba(136, 136, 255, 0.08);
+    }
+    .cmd-btn[data-group="Linux"]:hover {
+      background: rgba(136, 136, 255, 0.22);
     }
     /* Desktop: bottom-left, wider */
     @media (min-width: 769px) {
@@ -121,7 +154,7 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-DMgc22uy.js"></script>
+  <script type="module" crossorigin src="/assets/index-DaeXU-hE.js"></script>
 </head>
 <body>
   <div id="canvas-container"></div>
