@@ -98,7 +98,10 @@ export class Terminal {
     this.historyIndex = this.commandHistory.length;
 
     const result = this.commandParser.parse(input);
-    if (result.lines.length > 0) {
+    if (result.clear) {
+      this.outputBuffer.clear();
+      this.container.innerHTML = '';
+    } else if (result.lines.length > 0) {
       this.outputBuffer.addLines(result.lines, result.error ? 'terminal-error' : 'terminal-output');
     }
 

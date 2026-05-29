@@ -19,6 +19,7 @@ export class SceneManager {
       canvas,
       antialias: false,
       alpha: false,
+      preserveDrawingBuffer: true,
     });
     this.renderer.setSize(120, 80);
     this.renderer.setPixelRatio(1);

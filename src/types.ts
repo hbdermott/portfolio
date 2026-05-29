@@ -1,6 +1,7 @@
 export interface CommandResult {
   lines: string[];
   error?: boolean;
+  clear?: boolean;
 }
 
 export type CommandHandler = (args: string[]) => CommandResult;

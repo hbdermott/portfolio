@@ -116,7 +116,7 @@ export class PortfolioCommands {
     });
 
     this.commands.set('clear', () => {
-      return { lines: [] };
+      return { lines: [], clear: true };
     });
 
     this.commands.set('matrix', () => {
