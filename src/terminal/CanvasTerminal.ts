@@ -126,7 +126,8 @@ export class CanvasTerminal {
   /** Start Matrix Rain screensaver immediately. */
   startMatrixRain(): void {
     this.mode = 'matrix';
-    this.matrixRain.start(Math.floor(this.width / 14));
+    // fontSize 12 → 85 columns, 64 rows  (1024/12, 768/12)
+    this.matrixRain.start(85, 64);
     this.dirty = true;
   }
 
@@ -210,8 +211,11 @@ export class CanvasTerminal {
       this.renderGlitch(ctx, w, h);
     }
 
-    // CRT effects (skip in snake mode to keep game clean)
-    if (this.mode !== 'snake') {
+    // CRT effects (skip expensive ones in matrix / snake)
+    if (this.mode === 'matrix') {
+      this.applyScanlines(ctx, w, h);
+      this.applyFlicker(ctx, w, h, time);
+    } else if (this.mode !== 'snake') {
       this.applyVignette(ctx, w, h);
       this.applyScanlines(ctx, w, h);
       this.applyApertureGrille(ctx, w, h);
