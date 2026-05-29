@@ -304,11 +304,15 @@ export class CanvasTerminal {
         return;
       }
 
-      // Snake game input
+      // Snake game input (no typing sounds during game)
       if (this.mode === 'snake') {
         this.lastActivity = performance.now();
+        // Ctrl+C quits snake
+        if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+          this.exitSnake();
+          return;
+        }
         this.snakeGame.handleKey(e.key);
-        this.keyboardSound.play();
         return;
       }
 

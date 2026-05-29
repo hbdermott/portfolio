@@ -44,97 +44,84 @@
       left: 0;
       z-index: 100;
       font-family: 'Courier New', monospace;
-      transition: transform 0.25s ease;
-    }
-    #command-menu.minimized {
-      transform: translateY(calc(100% - 36px));
-    }
-    #command-menu.minimized #command-menu-content {
-      opacity: 0;
-      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
     }
     #command-menu-toggle {
       background: rgba(30, 30, 30, 0.92);
       color: #33ff33;
       border: 1px solid #33ff33;
-      padding: 8px 16px;
+      padding: 10px 20px;
       font-family: inherit;
-      font-size: 13px;
+      font-size: 14px;
       cursor: pointer;
-      border-radius: 4px 4px 0 0;
+      border-radius: 0 4px 0 0;
       display: flex;
       align-items: center;
       gap: 8px;
+      white-space: nowrap;
     }
     #command-menu-content {
       background: rgba(20, 20, 20, 0.92);
       border: 1px solid #33ff33;
       border-top: none;
-      padding: 12px;
-      max-height: 200px;
+      padding: 14px;
+      max-height: 260px;
       overflow-y: auto;
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 8px;
+      transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
+    }
+    #command-menu.minimized #command-menu-content {
+      max-height: 0;
+      opacity: 0;
+      padding: 0 14px;
+      pointer-events: none;
+      overflow: hidden;
     }
     .cmd-btn {
       background: rgba(51, 255, 51, 0.08);
       color: #33ff33;
       border: 1px solid rgba(51, 255, 51, 0.3);
-      padding: 4px 10px;
+      padding: 6px 12px;
       font-family: inherit;
-      font-size: 12px;
+      font-size: 13px;
       cursor: pointer;
       border-radius: 3px;
       transition: background 0.15s;
+      white-space: nowrap;
     }
     .cmd-btn:hover {
-      background: rgba(51, 255, 51, 0.2);
+      background: rgba(51, 255, 51, 0.25);
     }
-    /* Desktop: left panel */
+    /* Desktop: bottom-left, wider */
     @media (min-width: 769px) {
       #command-menu {
-        bottom: auto;
-        top: 50%;
-        left: 12px;
-        transform: translateY(-50%);
-        max-width: 200px;
-      }
-      #command-menu.minimized {
-        transform: translateY(-50%) translateX(-100%);
-      }
-      #command-menu.minimized #command-menu-toggle {
-        position: fixed;
-        left: 0;
         bottom: 12px;
-        transform: translateX(0);
-        border-radius: 0 4px 4px 0;
-        border-left: none;
+        left: 12px;
+        max-width: 320px;
       }
       #command-menu-content {
-        max-height: 60vh;
-        border-radius: 0 0 4px 4px;
-      }
-      #command-menu-toggle {
-        border-radius: 4px 4px 0 0;
+        max-height: 220px;
+        border-radius: 0 4px 4px 4px;
       }
     }
-    /* Mobile: bottom bar */
+    /* Mobile: full-width bottom bar */
     @media (max-width: 768px) {
       #command-menu {
         left: 0;
         width: 100%;
       }
       #command-menu-content {
-        max-height: 160px;
-      }
-      #command-menu.minimized #command-menu-toggle {
-        border-radius: 4px 4px 0 0;
-        margin-left: 12px;
+        max-height: 180px;
+        width: 100%;
+        box-sizing: border-box;
       }
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-DfFKJa4e.js"></script>
+  <script type="module" crossorigin src="/assets/index-BkboUkqg.js"></script>
 </head>
 <body>
   <div id="canvas-container"></div>

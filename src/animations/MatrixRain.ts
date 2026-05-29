@@ -1,11 +1,13 @@
 /**
  * Matrix rain screensaver.
- * Renders falling katakana/green characters on a canvas.
+ * Each column has a "drop" position that increments each frame,
+ * drawing a trail of characters.
  */
 export class MatrixRain {
   private active = false;
   private drops: number[] = [];
-  private chars = 'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
+  private readonly chars = 'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
+  private readonly fontSize = 16;
 
   start(columns: number): void {
     this.active = true;
@@ -21,34 +23,44 @@ export class MatrixRain {
   }
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    if (!this.active) return;
+    if (!this.active || this.drops.length === 0) return;
 
-    const fontSize = 14;
-    const columns = Math.floor(w / fontSize);
-
-    if (this.drops.length !== columns) {
-      this.drops = new Array(columns).fill(1);
-    }
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    // Fade the entire screen slightly to create trails
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
     ctx.fillRect(0, 0, w, h);
 
-    ctx.fillStyle = '#0F0';
-    ctx.font = `${fontSize}px monospace`;
+    ctx.font = `${this.fontSize}px monospace`;
     ctx.textBaseline = 'top';
 
-    for (let i = 0; i < columns; i++) {
+    const cols = this.drops.length;
+
+    for (let i = 0; i < cols; i++) {
       const char = this.chars[Math.floor(Math.random() * this.chars.length)];
-      const x = i * fontSize;
-      const y = this.drops[i] * fontSize;
+      const x = i * this.fontSize;
+      const y = this.drops[i] * this.fontSize;
 
-      // Gradient: bright at head, dimmer trail
-      const headDist = Math.abs(y - this.drops[i] * fontSize);
-      const alpha = headDist < fontSize * 3 ? 1 : 0.5 + Math.random() * 0.3;
-      ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
-      ctx.fillText(char, x, y);
+      // Bright head, dimming trail
+      if (y < h) {
+        ctx.fillStyle = '#fff';
+        ctx.fillText(char, x, y);
+      }
 
-      if (y > h && Math.random() > 0.975) {
+      // Dimmer previous characters in the trail
+      for (let t = 1; t <= 8; t++) {
+        const trailY = y - t * this.fontSize;
+        if (trailY >= 0 && trailY < h) {
+          const alpha = Math.max(0, 1 - t / 6);
+          ctx.fillStyle = `rgba(0, 255, 70, ${alpha})`;
+          ctx.fillText(
+            this.chars[Math.floor(Math.random() * this.chars.length)],
+            x,
+            trailY
+          );
+        }
+      }
+
+      // Advance drop
+      if (y > h && Math.random() > 0.98) {
         this.drops[i] = 0;
       }
       this.drops[i]++;

@@ -172,6 +172,9 @@ export class SnakeGame {
     ctx.font = '14px monospace';
     ctx.textBaseline = 'top';
     ctx.fillText(`Score: ${this.score}`, 8, 8);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '11px monospace';
+    ctx.fillText('Ctrl+C to quit', 8, 26);
 
     if (this.gameOver) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
