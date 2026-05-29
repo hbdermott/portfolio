@@ -40,7 +40,7 @@ export class GLTFScene {
       0.01,
       100
     );
-    this.camera.position.set(1.5, 0.7, 0);
+    this.camera.position.set(1.0 * 1.1, 0.8 * 1.1, 0);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
