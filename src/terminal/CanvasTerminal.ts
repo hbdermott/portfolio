@@ -72,8 +72,8 @@ export class CanvasTerminal {
   private shutdownMode = false;
   private shutdownPending = false;
   private shutdownTime = 0;
-  private readonly SHUTDOWN_SHOW_MS = 900;
-  private readonly SHUTDOWN_CLOSE_MS = 1400;
+  private readonly SHUTDOWN_SHOW_MS = 600;
+  private readonly SHUTDOWN_CLOSE_MS = 300;
   private readonly SHUTDOWN_TOTAL_MS = 4500;
 
   constructor(commandParser: CommandParser) {
