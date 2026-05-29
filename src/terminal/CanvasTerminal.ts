@@ -46,7 +46,7 @@ export class CanvasTerminal {
   private readonly VIGNETTE_STRENGTH   = 0.6;
   private readonly SCANLINE_STRENGTH   = 0.7;
   private readonly APERTURE_STRENGTH   = 0.3;
-  private readonly CHROMATIC_STRENGTH = 1.5;
+  private readonly CHROMATIC_STRENGTH = 0.5;
   private readonly NOISE_STRENGTH      = 1;
   private readonly FLICKER_STRENGTH    = 0.3;
 
@@ -67,6 +67,14 @@ export class CanvasTerminal {
   private snakeGame = new SnakeGame(() => this.exitSnake());
   private lastActivity = 0;
   private readonly IDLE_MS = 30000; // 30s screensaver timeout
+
+  // ─── Shutdown animation ───
+  private shutdownMode = false;
+  private shutdownPending = false;
+  private shutdownTime = 0;
+  private readonly SHUTDOWN_SHOW_MS = 900;
+  private readonly SHUTDOWN_CLOSE_MS = 1400;
+  private readonly SHUTDOWN_TOTAL_MS = 4500;
 
   constructor(commandParser: CommandParser) {
     this.commandParser = commandParser;
@@ -175,8 +183,24 @@ export class CanvasTerminal {
   update(time: number): void {
     this.glitch.update();
 
+    // Shutdown animation
+    if (this.shutdownPending) {
+      this.shutdownMode = true;
+      this.shutdownTime = time;
+      this.shutdownPending = false;
+    }
+    if (this.shutdownMode) {
+      const elapsed = time - this.shutdownTime;
+      if (elapsed > this.SHUTDOWN_TOTAL_MS) {
+        this.shutdownMode = false;
+        this.lines = [];
+        this.inputBuffer = '';
+      }
+      this.dirty = true;
+    }
+
     // Cursor blink (terminal only)
-    if (this.mode === 'terminal' && !this.booting) {
+    if (this.mode === 'terminal' && !this.booting && !this.shutdownMode) {
       if (time - this.lastBlinkTime > this.blinkInterval) {
         this.cursorVisible = !this.cursorVisible;
         this.lastBlinkTime = time;
@@ -196,7 +220,7 @@ export class CanvasTerminal {
     }
 
     // Auto-start screensaver after idle
-    if (this.mode === 'terminal' && !this.booting && time - this.lastActivity > this.IDLE_MS) {
+    if (this.mode === 'terminal' && !this.booting && !this.shutdownMode && time - this.lastActivity > this.IDLE_MS) {
       this.startMatrixRain();
     }
 
@@ -211,6 +235,11 @@ export class CanvasTerminal {
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;
+
+    if (this.shutdownMode) {
+      this.renderShutdown(ctx, w, h, time);
+      return;
+    }
 
     if (this.mode === 'matrix') {
       this.matrixRain.render(ctx, w, h);
@@ -232,7 +261,19 @@ export class CanvasTerminal {
     if (this.mode === 'snake') {
       this.applyScanlines(ctx, w, h);
       this.applyFlicker(ctx, w, h, time);
+    } else if (this.mode === 'matrix') {
+      // Matrix: skip aperture grille to prevent blue-line artifacts
+      this.applyVignette(ctx, w, h);
+      this.applyScanlines(ctx, w, h);
+      // Chromatic aberration is expensive; skip frames to save ~67% cost.
+      if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+        this.chromaticFrameCounter = 0;
+        this.applyChromaticAbberation(ctx, w, h);
+      }
+      this.applyNoise(ctx, w, h, time);
+      this.applyFlicker(ctx, w, h, time);
     } else {
+      // Terminal: full suite
       this.applyVignette(ctx, w, h);
       this.applyScanlines(ctx, w, h);
       this.applyApertureGrille(ctx, w, h);
@@ -248,17 +289,121 @@ export class CanvasTerminal {
 
   private renderGlitch(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const intensity = this.glitch.getIntensity();
-    // Heavy noise burst
-    const count = Math.floor(2000 * intensity);
-    ctx.fillStyle = `rgba(51, 255, 51, ${0.3 * intensity})`;
-    for (let i = 0; i < count; i++) {
-      ctx.fillRect(Math.random() * w, Math.random() * h, Math.random() * 4 + 1, 1);
+
+    // 1. Block displacement — copy random chunks and shift them horizontally
+    const blocks = Math.floor(6 * intensity);
+    for (let i = 0; i < blocks; i++) {
+      const bw = Math.random() * w * 0.4 + 40;
+      const bh = Math.random() * 20 + 4;
+      const bx = Math.random() * (w - bw);
+      const by = Math.random() * (h - bh);
+      const shift = (Math.random() - 0.5) * 60 * intensity;
+      ctx.drawImage(this.canvas, bx, by, bw, bh, bx + shift, by, bw, bh);
     }
-    // RGB split bands
-    for (let i = 0; i < 5 * intensity; i++) {
-      const y = Math.random() * h;
-      const shift = (Math.random() - 0.5) * 20 * intensity;
-      ctx.drawImage(this.canvas, 0, y, w, 2, shift, y, w, 2);
+
+    // 2. Color inversion bursts
+    const inversions = Math.floor(3 * intensity);
+    for (let i = 0; i < inversions; i++) {
+      const iw = Math.random() * 120 + 40;
+      const ih = Math.random() * 80 + 20;
+      const ix = Math.random() * (w - iw);
+      const iy = Math.random() * (h - ih);
+      ctx.save();
+      ctx.globalCompositeOperation = 'difference';
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.4 * intensity})`;
+      ctx.fillRect(ix, iy, iw, ih);
+      ctx.restore();
+    }
+
+    // 3. Heavy noise burst — mix of green, white, and black static
+    const count = Math.floor(4000 * intensity);
+    for (let i = 0; i < count; i++) {
+      const r = Math.random();
+      const px = Math.random() * w;
+      const py = Math.random() * h;
+      const pw = Math.random() * 3 + 1;
+      if (r < 0.5) {
+        ctx.fillStyle = `rgba(51, 255, 51, ${0.25 * intensity})`;
+      } else if (r < 0.75) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.2 * intensity})`;
+      } else {
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.3 * intensity})`;
+      }
+      ctx.fillRect(px, py, pw, 1);
+    }
+
+    // 4. Thick RGB split bands (horizontal scanline disruption)
+    const bands = Math.floor(8 * intensity);
+    for (let i = 0; i < bands; i++) {
+      const by = Math.random() * h;
+      const bh = Math.random() * 8 + 2;
+      const shift = (Math.random() - 0.5) * 30 * intensity;
+      ctx.drawImage(this.canvas, 0, by, w, bh, shift, by, w, bh);
+    }
+  }
+
+  private renderShutdown(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
+    const elapsed = time - this.shutdownTime;
+
+    // Phase 1: show content with CRT flicker (first 900ms)
+    if (elapsed < this.SHUTDOWN_SHOW_MS) {
+      ctx.fillStyle = this.bgColor;
+      ctx.fillRect(0, 0, w, h);
+      this.renderContent(ctx);
+
+      // Brightness flicker — like a dying CRT tube
+      const flicker = Math.sin(elapsed * 0.025) * 0.04 + 0.04;
+      ctx.fillStyle = `rgba(255, 255, 255, ${flicker})`;
+      ctx.fillRect(0, 0, w, h);
+      return;
+    }
+
+    // Phase 2: white bars close from top and bottom
+    const closeElapsed = elapsed - this.SHUTDOWN_SHOW_MS;
+    if (closeElapsed < this.SHUTDOWN_CLOSE_MS) {
+      const p = closeElapsed / this.SHUTDOWN_CLOSE_MS;
+      const barH = (h / 2) * p;
+
+      // Draw terminal content first
+      ctx.fillStyle = this.bgColor;
+      ctx.fillRect(0, 0, w, h);
+      this.renderContent(ctx);
+
+      // Top and bottom collapsing white bars
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 16;
+      ctx.fillRect(0, 0, w, barH);           // top bar growing down
+      ctx.fillRect(0, h - barH, w, barH);    // bottom bar growing up
+      ctx.shadowBlur = 0;
+
+      // CRT scanlines over the white bars
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+      for (let y = 0; y < h; y += 2) {
+        ctx.fillRect(0, y, w, 1);
+      }
+
+      // Slight horizontal squeeze as bars meet
+      const squeeze = 1.0 - p * 0.08;
+      if (squeeze < 1.0) {
+        ctx.drawImage(this.canvas, 0, 0, w, h,
+          w * (1 - squeeze) * 0.5, h * (1 - squeeze) * 0.5,
+          w * squeeze, h * squeeze);
+      }
+      return;
+    }
+
+    // Phase 3: black screen + faint "NO SIGNAL" after a pause
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, w, h);
+
+    if (elapsed > this.SHUTDOWN_SHOW_MS + this.SHUTDOWN_CLOSE_MS + 400) {
+      ctx.fillStyle = '#222222';
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('NO SIGNAL', w / 2, h / 2);
+      ctx.textAlign = 'left';
     }
   }
 
@@ -315,6 +460,9 @@ export class CanvasTerminal {
 
   private setupKeyboard(): void {
     window.addEventListener('keydown', (e) => {
+      // Ignore input during shutdown
+      if (this.shutdownMode || this.shutdownPending) return;
+
       // Wake from screensaver on any key
       if (this.mode === 'matrix') {
         this.stopMatrixRain();
@@ -386,6 +534,20 @@ export class CanvasTerminal {
   private executeCommand(): void {
     const input = this.inputBuffer.trim();
     if (!input) {
+      this.inputBuffer = '';
+      this.dirty = true;
+      return;
+    }
+
+    // Detect exit command and trigger shutdown
+    if (input.toLowerCase() === 'exit') {
+      this.lines.push({ text: `${this.promptText} ${input}`, type: 'prompt' });
+      const result = this.commandParser.parse(input);
+      const type = result.error ? 'error' : 'output';
+      for (const line of result.lines) {
+        this.lines.push({ text: line, type });
+      }
+      this.shutdownPending = true;
       this.inputBuffer = '';
       this.dirty = true;
       return;

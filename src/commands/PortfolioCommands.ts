@@ -34,9 +34,9 @@ export class PortfolioCommands {
           '  matrix      - Matrix rain effect',
           '  glitch      - Glitch effect',
           '',
-          'Linux Commands:',
-          '  ls, cd, pwd, cat, mkdir, touch, rm',
-          '  echo, whoami, date, uname',
+           'Linux Commands:',
+           '  ls, cd, pwd, cat, mkdir, touch, rm',
+           '  echo, whoami, date, uname, exit',
           '',
           'Tip: Use projects --detail <name> for more info',
         ]

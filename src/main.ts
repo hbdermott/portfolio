@@ -46,7 +46,7 @@ function main(): void {
     {
       name: 'Linux',
       color: '#8888ff',
-      commands: ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'touch', 'rm', 'echo', 'whoami', 'date', 'uname', 'clear'],
+      commands: ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'touch', 'rm', 'echo', 'whoami', 'date', 'uname', 'clear', 'exit'],
     },
   ];
   new CommandMenu(commandGroups, (cmd) => terminal.injectCommand(cmd));

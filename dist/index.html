@@ -48,6 +48,10 @@
       flex-direction: column;
       align-items: flex-start;
     }
+    #command-menu.minimized #command-menu-toggle {
+      border-bottom: 1px solid #33ff33;
+      border-radius: 4px;
+    }
     #command-menu-toggle {
       background: rgba(30, 30, 30, 0.92);
       color: #33ff33;
@@ -73,6 +77,23 @@
       flex-wrap: wrap;
       gap: 8px;
       transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
+      /* Custom scrollbar — theme-matched */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(51, 255, 51, 0.35) rgba(0, 0, 0, 0.3);
+    }
+    #command-menu-content::-webkit-scrollbar {
+      width: 5px;
+    }
+    #command-menu-content::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 2px;
+    }
+    #command-menu-content::-webkit-scrollbar-thumb {
+      background: rgba(51, 255, 51, 0.35);
+      border-radius: 2px;
+    }
+    #command-menu-content::-webkit-scrollbar-thumb:hover {
+      background: rgba(51, 255, 51, 0.55);
     }
     #command-menu.minimized #command-menu-content {
       max-height: 0;
@@ -154,7 +175,7 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-C8Kv35d8.js"></script>
+  <script type="module" crossorigin src="/assets/index-Dt_CH2QA.js"></script>
 </head>
 <body>
   <div id="canvas-container"></div>

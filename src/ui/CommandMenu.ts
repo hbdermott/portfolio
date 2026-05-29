@@ -49,7 +49,10 @@ export class CommandMenu {
         btn.className = 'cmd-btn';
         btn.dataset.group = group.name;
         btn.textContent = cmd;
-        btn.addEventListener('click', () => this.onCommand(cmd));
+        btn.addEventListener('click', () => {
+          this.onCommand(cmd);
+          btn.blur();
+        });
         this.content.appendChild(btn);
       }
 
