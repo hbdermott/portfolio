@@ -113,6 +113,7 @@ export class CanvasTerminal {
     this.applyVignette(ctx, w, h);
     this.applyScanlines(ctx, w, h);
     this.applyApertureGrille(ctx, w, h);
+    this.applyChromaticAbberation(ctx, w, h);
     this.applyNoise(ctx, w, h, time);
     this.applyFlicker(ctx, w, h, time);
   }
@@ -136,7 +137,7 @@ export class CanvasTerminal {
       ctx.fillStyle = this.getColorForType(line.type);
       // Apply phosphor glow effect
       ctx.shadowColor = ctx.fillStyle;
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 10;
       ctx.fillText(line.text, this.padding, y);
       ctx.shadowBlur = 0;
       y += this.lineHeight;
@@ -149,7 +150,7 @@ export class CanvasTerminal {
       // Draw prompt
       ctx.fillStyle = this.textColor;
       ctx.shadowColor = this.textColor;
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 10;
       ctx.fillText(this.promptText + ' ', this.padding, y);
       ctx.shadowBlur = 0;
 
@@ -175,7 +176,7 @@ export class CanvasTerminal {
           } else {
             ctx.fillStyle = this.textColor;
             ctx.shadowColor = this.textColor;
-            ctx.shadowBlur = 6;
+            ctx.shadowBlur = 10;
             ctx.fillText(char, charX, y);
             ctx.shadowBlur = 0;
           }
@@ -192,13 +193,13 @@ export class CanvasTerminal {
   }
 
   /**
-   * Vignette: darkens corners to simulate CRT tube curvature and light falloff.
+   * Vignette: heavy darkening at edges simulating CRT tube curvature.
    */
   private applyVignette(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const gradient = ctx.createRadialGradient(w / 2, h / 2, w * 0.35, w / 2, h / 2, w * 0.85);
+    const gradient = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.9);
     gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.2)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+    gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.35)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
   }
@@ -209,21 +210,21 @@ export class CanvasTerminal {
   private applyScanlines(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     ctx.globalCompositeOperation = 'source-over';
 
-    // Primary scanlines: every 3rd pixel, 1px thick, fairly dark
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    // Primary scanlines: every 3rd pixel, thick dark lines
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.50)';
     for (let y = 0; y < h; y += 3) {
       ctx.fillRect(0, y, w, 1);
     }
 
-    // Secondary "interlace" lines: every other primary line is slightly brighter
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+    // Secondary "interlace" lines
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     for (let y = 1; y < h; y += 6) {
       ctx.fillRect(0, y, w, 1);
     }
 
-    // Horizontal glow bleed between lines (subtle green tint in gaps)
+    // Horizontal glow bleed between lines (green phosphor bleed)
     ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = 'rgba(51, 255, 51, 0.015)';
+    ctx.fillStyle = 'rgba(51, 255, 51, 0.06)';
     for (let y = 2; y < h; y += 3) {
       ctx.fillRect(0, y, w, 1);
     }
@@ -231,60 +232,97 @@ export class CanvasTerminal {
   }
 
   /**
-   * Aperture grille / shadow mask: vertical RGB stripes simulating CRT phosphor triads.
+   * Aperture grille / shadow mask: heavy vertical RGB stripes.
    */
   private applyApertureGrille(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     ctx.globalCompositeOperation = 'overlay';
     const stripeWidth = 3; // 1px R + 1px G + 1px B
     for (let x = 0; x < w; x += stripeWidth) {
       // Red stripe
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.035)';
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.18)';
       ctx.fillRect(x, 0, 1, h);
       // Green stripe
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.045)';
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.22)';
       ctx.fillRect(x + 1, 0, 1, h);
       // Blue stripe
-      ctx.fillStyle = 'rgba(0, 0, 255, 0.035)';
+      ctx.fillStyle = 'rgba(0, 0, 255, 0.18)';
       ctx.fillRect(x + 2, 0, 1, h);
     }
     ctx.globalCompositeOperation = 'source-over';
   }
 
   /**
-   * Analog noise: sparse random green-tinted pixels.
+   * Chromatic aberration: slight RGB channel offset at screen edges.
+   */
+  private applyChromaticAbberation(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    // Get the current canvas content
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    const offset = 3; // pixels to shift
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const dist = Math.sqrt(
+          Math.pow((x - w / 2) / (w / 2), 2) +
+          Math.pow((y - h / 2) / (h / 2), 2)
+        );
+        const strength = dist * 0.6; // stronger at edges
+
+        if (strength > 0.05) {
+          // Red channel shifted left
+          const rx = Math.min(w - 1, Math.max(0, x + Math.round(offset * strength)));
+          const ri = (y * w + rx) * 4;
+          data[i] = data[ri]; // R
+
+          // Blue channel shifted right
+          const bx = Math.min(w - 1, Math.max(0, x - Math.round(offset * strength)));
+          const bi = (y * w + bx) * 4;
+          data[i + 2] = data[bi + 2]; // B
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  /**
+   * Analog noise: dense random static across the screen.
    */
   private applyNoise(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
-    // Seeded-ish random from time so noise shimmers each frame
-    const seed = Math.floor(time / 80);
-    const noiseCount = 600; // number of noise specks
-    ctx.fillStyle = 'rgba(51, 255, 51, 0.12)';
+    const seed = Math.floor(time / 40);
+    const noiseCount = 3000; // lots of specks
 
     for (let i = 0; i < noiseCount; i++) {
       const px = Math.floor(Math.abs(Math.sin(i * 12.9898 + seed * 78.233) * w));
       const py = Math.floor(Math.abs(Math.cos(i * 43.123 + seed * 37.719) * h));
-      ctx.fillRect(px, py, 1, 1);
+      // Stronger bright specks + darker dead pixels
+      const isBright = Math.random() > 0.6;
+      ctx.fillStyle = isBright
+        ? 'rgba(200, 255, 200, 0.45)'
+        : 'rgba(0, 0, 0, 0.40)';
+      ctx.fillRect(px, py, 1 + (Math.random() > 0.9 ? 1 : 0), 1);
     }
   }
 
   /**
-   * Flicker: very subtle whole-screen brightness modulation + occasional roll bar.
+   * Flicker: pronounced whole-screen brightness modulation + roll bar.
    */
   private applyFlicker(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
-    // Slow brightness pulse (mains hum ~50/60Hz feel)
-    const flicker = 0.5 + 0.5 * Math.sin(time * 0.004);
-    const alpha = 0.02 + flicker * 0.02; // 0.02–0.04 range
+    // Brightness pulse (mains hum feel) — swings between dimming 8% and 22%
+    const flicker = 0.5 + 0.5 * Math.sin(time * 0.006);
+    const alpha = 0.08 + flicker * 0.14; // 0.08–0.22 range
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
 
-    // Occasional horizontal "roll bar" — a faint dark band sweeping down
-    const rollPos = (time * 0.08) % (h * 1.5);
+    // Horizontal "roll bar" — a dark band sweeping down the screen
+    const rollPos = (time * 0.12) % (h * 1.8);
     if (rollPos < h) {
-      const grad = ctx.createLinearGradient(0, rollPos - 10, 0, rollPos + 10);
+      const grad = ctx.createLinearGradient(0, rollPos - 18, 0, rollPos + 18);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.5, 'rgba(0,0,0,0.08)');
+      grad.addColorStop(0.5, 'rgba(0,0,0,0.35)');
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, rollPos - 10, w, 20);
+      ctx.fillRect(0, rollPos - 18, w, 36);
     }
   }
 
