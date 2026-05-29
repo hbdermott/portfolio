@@ -1,22 +1,283 @@
+/* ============================================================
+   GLOBAL / BODY
+   ============================================================ */
 body {
   margin: 0;
   padding: 0;
-  background: #000;
+  background: #050505;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Courier New', Courier, monospace;
   overflow: hidden;
-  width: 100vw;
-  height: 100vh;
 }
 
-#canvas-container {
-  width: 100vw;
+/* ============================================================
+   CRT ASSEMBLY - Full unit with CSS3D perspective
+   ============================================================ */
+#crt-assembly {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
   height: 100vh;
-  position: fixed;
-  top: 0;
-  left: 0;
+  /* Deep perspective for 3D transforms */
+  perspective: 1600px;
+  perspective-origin: 50% 45%;
 }
 
-#canvas-container canvas {
-  display: block;
+/* Pivot wrapper allows tilting the whole monitor */
+#monitor-pivot {
+  position: relative;
+  /* Responsive sizing based on viewport */
+  width: min(88vw, 980px);
+  height: min(calc(88vw * 0.78), calc(980px * 0.78));
+  transform-style: preserve-3d;
+}
+
+/* ============================================================
+   CRT MONITOR - The head unit
+   ============================================================ */
+#crt-monitor {
+  position: relative;
   width: 100%;
   height: 100%;
+  transform-style: preserve-3d;
+  /* Tilt the monitor slightly toward viewer + subtle rotation */
+  transform:
+    rotateX(4deg)
+    rotateY(0deg)
+    scale(1);
+}
+
+/* ============================================================
+   MONITOR FRAME - Outer casing with convex curve
+   ============================================================ */
+#monitor-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* Molded plastic look with radial lighting for convex effect */
+  background:
+    /* Top-center highlight where light hits the curve */
+    radial-gradient(
+      ellipse 65% 55% at 50% 25%,
+      rgba(90, 90, 90, 0.5) 0%,
+      transparent 55%
+    ),
+    /* Bottom shadow where curve falls away */
+    radial-gradient(
+      ellipse 80% 70% at 50% 90%,
+      rgba(0, 0, 0, 0.5) 0%,
+      transparent 50%
+    ),
+    /* Side falloff */
+    radial-gradient(
+      ellipse 90% 90% at 50% 50%,
+      transparent 40%,
+      rgba(0, 0, 0, 0.35) 100%
+    ),
+    /* Base dark plastic */
+    linear-gradient(
+      175deg,
+      #3a3a3a 0%,
+      #2a2a2a 15%,
+      #1a1a1a 50%,
+      #0a0a0a 100%
+    );
+  border-radius: 28px;
+  padding: 20px;
+  box-sizing: border-box;
+  /* Multiple border rings = depth */
+  box-shadow:
+    /* Inner highlight on frame edge */
+    inset 0 1px 2px rgba(255, 255, 255, 0.06),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+    /* Frame border layers */
+    0 0 0 1px #3a3a3a,
+    0 0 0 3px #222,
+    0 0 0 5px #111,
+    /* Deep ambient shadow */
+    0 30px 80px rgba(0, 0, 0, 0.95),
+    0 15px 35px rgba(0, 0, 0, 0.7),
+    /* Very faint green glow from screen bleed */
+    0 0 100px rgba(51, 255, 51, 0.03);
+}
+
+/* ============================================================
+   SCREEN BEZEL - Inner frame around the glass
+   ============================================================ */
+#screen-bezel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #030303;
+  /* Generous rounded corners on all sides */
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    /* Deep inner shadow = screen is recessed in frame */
+    inset 0 0 40px rgba(0, 0, 0, 0.95),
+    inset 0 0 80px rgba(0, 0, 0, 0.7),
+    /* Subtle top highlight on inner bezel */
+    inset 0 1px 2px rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================================
+   SCREEN GLASS - The display surface
+   ============================================================ */
+#screen-glass {
+  position: relative;
+  width: calc(100% - 32px);
+  height: calc(100% - 32px);
+  margin: 16px;
+  background: #010101;
+  border-radius: 12px;
+  overflow: hidden;
+  /* The glass sits slightly forward in 3D space */
+  transform: translateZ(2px);
+  /* Screen surface shading */
+  box-shadow:
+    inset 0 0 60px rgba(0, 0, 0, 0.9),
+    inset 0 0 120px rgba(0, 0, 0, 0.5);
+}
+
+/* CRT glass reflection - curved glossy surface */
+#screen-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    /* Main curved highlight at top of glass */
+    radial-gradient(
+      ellipse 75% 30% at 50% 5%,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 55%
+    ),
+    /* Secondary corner reflection */
+    radial-gradient(
+      ellipse 30% 30% at 10% 10%,
+      rgba(255, 255, 255, 0.025) 0%,
+      transparent 60%
+    );
+  pointer-events: none;
+  z-index: 50;
+  border-radius: inherit;
+}
+
+/* Barrel distortion vignette - edges darken more */
+#screen-glass::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    ellipse 95% 90% at 50% 50%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.6) 88%,
+    rgba(0, 0, 0, 0.9) 100%
+  );
+  pointer-events: none;
+  z-index: 52;
+  border-radius: inherit;
+}
+
+/* ============================================================
+   BRAND LABEL
+   ============================================================ */
+#monitor-brand {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #333;
+  font-size: 8px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  z-index: 10;
+  text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.9);
+}
+
+/* ============================================================
+   POWER LED
+   ============================================================ */
+#power-led {
+  position: absolute;
+  bottom: -12px;
+  right: 45px;
+  width: 5px;
+  height: 5px;
+  background: #33ff33;
+  border-radius: 50%;
+  box-shadow:
+    0 0 2px #33ff33,
+    0 0 5px #33ff33,
+    0 0 10px rgba(51, 255, 51, 0.4);
+  animation: led-blink 4s ease-in-out infinite;
+  z-index: 10;
+}
+
+@keyframes led-blink {
+  0%, 90%, 100% { opacity: 1; }
+  95% { opacity: 0.3; }
+}
+
+/* ============================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================ */
+@media (max-width: 600px) {
+  #monitor-pivot {
+    width: min(94vw, 480px);
+    height: min(calc(94vw * 0.78), calc(480px * 0.78));
+  }
+
+  #monitor-frame {
+    border-radius: 18px;
+    padding: 12px;
+  }
+
+  #screen-bezel {
+    border-radius: 10px;
+  }
+
+  #screen-glass {
+    width: calc(100% - 20px);
+    height: calc(100% - 20px);
+    margin: 10px;
+    border-radius: 6px;
+  }
+
+  #terminal {
+    font-size: 10px;
+    padding: 10px 12px;
+  }
+
+  #monitor-brand {
+    font-size: 6px;
+    letter-spacing: 3px;
+  }
+}
+
+@media (max-height: 600px) {
+  #monitor-pivot {
+    width: min(80vw, 720px);
+    height: min(calc(80vw * 0.78), calc(720px * 0.78));
+  }
+
+  #crt-monitor {
+    transform: rotateX(2deg) scale(0.95);
+  }
+}
+
+@media (min-width: 1400px) {
+  #monitor-pivot {
+    width: min(75vw, 1100px);
+    height: min(calc(75vw * 0.78), calc(1100px * 0.78));
+  }
 }

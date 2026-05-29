@@ -3,8 +3,7 @@ import { PortfolioCommands } from './commands/PortfolioCommands';
 import { LinuxEmulator } from './commands/LinuxEmulator';
 import { FileSystem } from './commands/FileSystem';
 import { CanvasTerminal } from './terminal/CanvasTerminal';
-import { RoomScene } from './room/RoomScene';
-import { MatrixRain3D } from './animations/MatrixRain3D';
+import { GLTFScene } from './room/GLTFScene';
 
 function main(): void {
   // Initialize command system
@@ -17,30 +16,20 @@ function main(): void {
     linuxEmulator.getCommands()
   );
 
-  // Create canvas-based terminal
+  // Create canvas-based terminal (renders to a texture)
   const terminal = new CanvasTerminal(commandParser);
 
-  // Create 3D room scene
+  // Create 3D scene with GLTF model
   const container = document.getElementById('canvas-container');
   if (!container) {
     console.error('Canvas container not found');
     return;
   }
 
-  const roomScene = new RoomScene(container, terminal);
-  roomScene.start();
+  const gltfScene = new GLTFScene(container, terminal);
+  gltfScene.start();
 
-  // Hook up 3D effects to commands
-  const scene = roomScene.getScene();
-  const matrixRain = new MatrixRain3D(scene);
-
-  const originalMatrix = portfolioCommands.getCommands().get('matrix')!;
-  portfolioCommands.getCommands().set('matrix', (args) => {
-    matrixRain.start();
-    return originalMatrix(args);
-  });
-
-  console.log('3D CRT Terminal Portfolio initialized');
+  console.log('CRT Terminal Portfolio with GLTF Model initialized');
 }
 
 window.addEventListener('DOMContentLoaded', () => {

@@ -4,10 +4,44 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hunter Dermott - Terminal Portfolio</title>
-  <script type="module" crossorigin src="/assets/index-BJYlIMxQ.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Do6zSLBw.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    /* Hidden terminal input handler */
+    #terminal-input-capture {
+      position: fixed;
+      top: -100px;
+      left: -100px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      z-index: -1;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-CPiTRXWM.js"></script>
 </head>
 <body>
   <div id="canvas-container"></div>
+  <input type="text" id="terminal-input-capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
 </body>
 </html>
