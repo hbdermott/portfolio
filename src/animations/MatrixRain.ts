@@ -1,47 +1,42 @@
 /**
  * Classic Matrix rain effect.
  *
- * Algorithm: one "drop" per screen column.  Each frame we draw a
- * semi-transparent black rectangle over the entire canvas so old
- * characters fade into a green trail.  Then we draw a bright
- * white-green character at each drop's current Y.  Drops move at
- * slightly different speeds so they never visually sync up.
+ * Each "drop" is a vertical streak of characters falling downward.
+ * The head (bottom character) is bright white-green.  The trail above
+ * it is a fading gradient of green characters.  A semi-transparent
+ * black overlay each frame creates the persistence fade.
  *
- * Drops spawn at random Y positions across the whole screen so the
- * rain is dense and visible immediately — nothing starts off-screen.
+ * Drops respawn at the top once the entire streak has fallen off
+ * the bottom of the screen, ensuring continuous rain.
  */
 export class MatrixRain {
   private active = false;
-  /** Row position (can be fractional) for every column */
-  private drops: number[] = [];
-  /** Fall speed (rows/frame) for every column */
-  private speeds: number[] = [];
-  /** Pre-computed character for each column so it doesn't flicker */
-  private columnChars: string[] = [];
+  private cols = 0;
+  private rows = 0;
+  private drops: MatrixDrop[] = [];
+
   private readonly chars =
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
-  private readonly fontSize = 13;
+  private readonly fontSize = 14;
+  // How many drops relative to columns (0.8 = 80% of columns have a drop)
+  private readonly density = 0.8;
 
   start(w: number, h: number): void {
     this.active = true;
-    const cols = Math.ceil(w / this.fontSize);
-    const rows = Math.ceil(h / this.fontSize);
-    this.drops = new Array(cols);
-    this.speeds = new Array(cols);
-    this.columnChars = new Array(cols);
+    this.cols = Math.ceil(w / this.fontSize);
+    this.rows = Math.ceil(h / this.fontSize);
 
-    for (let i = 0; i < cols; i++) {
-      // Start at a random row so the screen is full immediately.
-      this.drops[i] = Math.random() * rows;
-      // Vary speed so columns don't visually sync up.
-      this.speeds[i] = 0.5 + Math.random() * 1.0; // 0.5–1.5 rows/frame
-      // Pick one character per column; it will change on respawn.
-      this.columnChars[i] = this.chars[Math.floor(Math.random() * this.chars.length)];
+    const count = Math.floor(this.cols * this.density);
+    this.drops = new Array(count);
+
+    for (let i = 0; i < count; i++) {
+      this.drops[i] = this.createDrop(true);
     }
   }
 
   stop(): void {
     this.active = false;
+    this.drops = [];
   }
 
   isActive(): boolean {
@@ -49,37 +44,70 @@ export class MatrixRain {
   }
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    if (!this.active) return;
+    if (!this.active || this.drops.length === 0) return;
 
     const fs = this.fontSize;
-    const cols = this.drops.length;
-    const charLen = this.chars.length;
 
-    // 1. Fade previous frame — creates the green tail.
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+    // 1. Fade previous frame — old characters dim into a green trail.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
     ctx.fillRect(0, 0, w, h);
 
     ctx.font = `${fs}px monospace`;
     ctx.textBaseline = 'top';
 
-    // 2. Advance and draw every column's drop.
-    for (let i = 0; i < cols; i++) {
-      this.drops[i] += this.speeds[i];
+    // 2. Advance and draw every drop.
+    for (const drop of this.drops) {
+      drop.y += drop.speed;
 
-      const y = this.drops[i] * fs;
+      // Draw each character in the streak, from head (bottom) up.
+      for (let i = 0; i < drop.chars.length; i++) {
+        const row = drop.y - i; // i=0 is head (bottom), i>0 is trail above
+        const py = row * fs;
 
-      // Draw the bright head.
-      if (y < h) {
-        ctx.fillStyle = '#e6ffe6';
-        ctx.fillText(this.columnChars[i], i * fs, y);
+        // Skip off-screen characters
+        if (py < -fs || py > h) continue;
+
+        if (i === 0) {
+          // Head: bright white-green
+          ctx.fillStyle = '#e6ffe6';
+        } else {
+          // Trail: green that fades with distance from head
+          const fade = 1 - i / drop.chars.length;
+          const g = Math.floor(180 + 75 * fade); // 180-255
+          ctx.fillStyle = `rgb(0, ${g}, 0)`;
+        }
+
+        ctx.fillText(drop.chars[i], drop.x * fs, py);
       }
 
-      // Respawn once the head leaves the bottom.
-      if (y > h + fs * 2) {
-        this.drops[i] = 0;
-        this.speeds[i] = 0.5 + Math.random() * 1.0;
-        this.columnChars[i] = this.chars[Math.floor(Math.random() * charLen)];
+      // Respawn once the entire streak has fallen off the bottom.
+      if (drop.y - drop.chars.length > this.rows) {
+        Object.assign(drop, this.createDrop(false));
       }
     }
   }
+
+  private createDrop(scatter: boolean): MatrixDrop {
+    const length = Math.floor(Math.random() * 16) + 6; // 6-21 chars
+    const chars: string[] = new Array(length);
+    for (let i = 0; i < length; i++) {
+      chars[i] = this.chars[Math.floor(Math.random() * this.chars.length)];
+    }
+
+    return {
+      x: Math.floor(Math.random() * this.cols),
+      y: scatter
+        ? Math.random() * (this.rows + length) - length // anywhere on or above screen
+        : -length, // start just above the top
+      speed: Math.random() * 1.2 + 0.4, // 0.4-1.6 rows/frame
+      chars,
+    };
+  }
+}
+
+interface MatrixDrop {
+  x: number; // column index
+  y: number; // head row position (float)
+  speed: number; // rows per frame
+  chars: string[]; // characters in the streak, head first
 }
