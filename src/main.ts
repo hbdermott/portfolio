@@ -4,6 +4,7 @@ import { LinuxEmulator } from './commands/LinuxEmulator';
 import { FileSystem } from './commands/FileSystem';
 import { CanvasTerminal } from './terminal/CanvasTerminal';
 import { GLTFScene } from './room/GLTFScene';
+import { CommandMenu } from './ui/CommandMenu';
 
 function main(): void {
   // Initialize command system
@@ -16,8 +17,9 @@ function main(): void {
     linuxEmulator.getCommands()
   );
 
-  // Create canvas-based terminal (renders to a texture, with baked-in CRT effects)
+  // Create canvas-based terminal
   const terminal = new CanvasTerminal(commandParser);
+  portfolioCommands.bindTerminal(terminal);
 
   // Create 3D scene with GLTF model
   const container = document.getElementById('canvas-container');
@@ -29,7 +31,14 @@ function main(): void {
   const gltfScene = new GLTFScene(container, terminal);
   gltfScene.start();
 
-  console.log('CRT Terminal Portfolio with GLTF Model initialized');
+  // Command menu overlay
+  const allCommands = [
+    'about', 'projects', 'experience', 'skills', 'contact',
+    'matrix', 'glitch', 'snake', 'clear', 'help',
+  ];
+  new CommandMenu(allCommands, (cmd) => terminal.injectCommand(cmd));
+
+  console.log('CRT Terminal Portfolio initialized');
 }
 
 window.addEventListener('DOMContentLoaded', () => {

@@ -1,12 +1,18 @@
 import type { CommandHandler } from '../types';
 import { aboutContent, projects, experience, skills, contactInfo } from '../data/portfolio';
+import type { CanvasTerminal } from '../terminal/CanvasTerminal';
 
 export class PortfolioCommands {
   private commands: Map<string, CommandHandler>;
+  private terminal: CanvasTerminal | null = null;
 
   constructor() {
     this.commands = new Map();
     this.registerCommands();
+  }
+
+  bindTerminal(terminal: CanvasTerminal): void {
+    this.terminal = terminal;
   }
 
   getCommands(): Map<string, CommandHandler> {
@@ -120,11 +126,18 @@ export class PortfolioCommands {
     });
 
     this.commands.set('matrix', () => {
+      this.terminal?.startMatrixRain();
       return { lines: ['Initiating matrix sequence...'] };
     });
 
     this.commands.set('glitch', () => {
+      this.terminal?.triggerGlitch();
       return { lines: ['System glitch detected...'] };
+    });
+
+    this.commands.set('snake', () => {
+      this.terminal?.startSnake();
+      return { lines: ['Launching SNAKE... Use arrow keys or WASD. Any key to exit.'] };
     });
   }
 }
