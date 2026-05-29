@@ -6,19 +6,23 @@
 export class KeyboardSound {
   private ctx: AudioContext | null = null;
   private buffer: AudioBuffer | null = null;
-  private loaded = false;
+  private loadPromise: Promise<void> | null = null;
 
   constructor(private src: string) {}
 
-  /** Decode the MP3 once; safe to call multiple times. */
-  async load(): Promise<void> {
-    if (this.loaded) return;
+  /** Decode the MP3 once; concurrent calls return the same promise. */
+  load(): Promise<void> {
+    if (this.loadPromise) return this.loadPromise;
+    this.loadPromise = this.decode();
+    return this.loadPromise;
+  }
+
+  private async decode(): Promise<void> {
     try {
       const res = await fetch(this.src);
       const arrayBuffer = await res.arrayBuffer();
       this.ctx = new AudioContext();
       this.buffer = await this.ctx.decodeAudioData(arrayBuffer);
-      this.loaded = true;
     } catch (e) {
       console.warn('Keyboard sound failed to load:', e);
     }

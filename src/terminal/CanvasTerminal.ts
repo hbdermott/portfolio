@@ -45,9 +45,10 @@ export class CanvasTerminal {
   private readonly NOISE_STRENGTH      = 1;
   private readonly FLICKER_STRENGTH    = 0.3;
 
-  private charWidth = 9.6; // approximate, measured later
+  private charWidth = 9.6; // measured in constructor
   private maxVisibleLines = 0;
   private scrollOffset = 0;
+  private promptWidth = 0;   // measured in constructor
   private keyboardSound = new KeyboardSound('/keyboard.mp3');
 
   constructor(commandParser: CommandParser) {
@@ -67,9 +68,10 @@ export class CanvasTerminal {
     this.texture.magFilter = THREE.LinearFilter;
     this.texture.colorSpace = THREE.SRGBColorSpace;
 
-    // Measure character width
+    // Measure character width and prompt width once
     this.ctx.font = `${this.fontSize}px 'Courier New', monospace`;
     this.charWidth = this.ctx.measureText('M').width;
+    this.promptWidth = this.ctx.measureText(this.promptText + ' ').width;
     this.maxVisibleLines = Math.floor((this.height - this.padding * 2) / this.lineHeight);
 
     this.setupKeyboard();
@@ -149,11 +151,8 @@ export class CanvasTerminal {
 
     // Draw input line with block cursor
     if (!this.booting && this.lines.length - startLine < this.maxVisibleLines) {
-      const promptWidth = this.ctx.measureText(this.promptText + ' ').width;
       this.drawTextWithGlow(ctx, this.promptText + ' ', this.padding, y, this.textColor);
-
-      const inputX = this.padding + promptWidth;
-      this.renderInputLine(ctx, inputX, y);
+      this.renderInputLine(ctx, this.padding + this.promptWidth, y);
     }
   }
 
@@ -270,24 +269,25 @@ export class CanvasTerminal {
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
     const offset = Math.round(3 * s);
+    const halfW = w / 2;
+    const halfH = h / 2;
+    const invHalfW = 1 / halfW;
+    const invHalfH = 1 / halfH;
 
     for (let y = 0; y < h; y++) {
+      const dy = (y - halfH) * invHalfH;
+      const dy2 = dy * dy;
       for (let x = 0; x < w; x++) {
         const i = (y * w + x) * 4;
-        const dist = Math.sqrt(
-          Math.pow((x - w / 2) / (w / 2), 2) +
-          Math.pow((y - h / 2) / (h / 2), 2)
-        );
-        const strength = dist * 0.6 * s;
+        const dx = (x - halfW) * invHalfW;
+        const strength = Math.sqrt(dx * dx + dy2) * 0.6 * s;
 
         if (strength > 0.05) {
-          const rx = Math.min(w - 1, Math.max(0, x + Math.round(offset * strength)));
-          const ri = (y * w + rx) * 4;
-          data[i] = data[ri]; // R
-
-          const bx = Math.min(w - 1, Math.max(0, x - Math.round(offset * strength)));
-          const bi = (y * w + bx) * 4;
-          data[i + 2] = data[bi + 2]; // B
+          const shift = Math.round(offset * strength);
+          const rx = x + shift;
+          if (rx < w) data[i] = data[(y * w + rx) * 4];
+          const bx = x - shift;
+          if (bx >= 0) data[i + 2] = data[(y * w + bx) * 4 + 2];
         }
       }
     }
@@ -303,18 +303,15 @@ export class CanvasTerminal {
     if (s <= 0) return;
     const seed = Math.floor(time / 80);
     const noiseCount = Math.round(1200 * s);
-    const margin = 4; // keep noise away from edges
+    const margin = 4;
+    const boundW = w - margin * 2;
+    const boundH = h - margin * 2;
 
     for (let i = 0; i < noiseCount; i++) {
-      // Seeded deterministic brightness so it shimmers each frame
       const hash = Math.abs(Math.sin(i * 12.9898 + seed * 78.233));
-      const isBright = hash > 0.4;
-
-      // Uniform random position (no edge clustering)
-      const px = margin + Math.floor(Math.random() * (w - margin * 2));
-      const py = margin + Math.floor(Math.random() * (h - margin * 2));
-
-      ctx.fillStyle = isBright
+      const px = margin + Math.floor(Math.random() * boundW);
+      const py = margin + Math.floor(Math.random() * boundH);
+      ctx.fillStyle = hash > 0.4
         ? `rgba(200, 255, 200, ${0.22 * s})`
         : `rgba(0, 0, 0, ${0.18 * s})`;
       ctx.fillRect(px, py, 1, 1);
@@ -366,6 +363,7 @@ export class CanvasTerminal {
         e.preventDefault();
         this.inputBuffer = this.inputBuffer.slice(0, -1);
         this.dirty = true;
+        this.keyboardSound.play();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         this.navigateHistory(-1);

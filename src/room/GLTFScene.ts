@@ -40,7 +40,7 @@ export class GLTFScene {
       0.01,
       100
     );
-    this.camera.position.set(1.0 * 1.1, 0.8 * 1.1, 0);
+    this.camera.position.set(1.1, 0.88, 0);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -77,17 +77,6 @@ export class GLTFScene {
 
       // Update terminal canvas
       this.terminal.update(elapsed);
-
-      // Update monitor screen texture if found
-      if (this.monitorScreenMesh) {
-        const mat = this.monitorScreenMesh.material as THREE.MeshStandardMaterial;
-        if (mat.map) {
-          mat.map.needsUpdate = true;
-        }
-        if (mat.emissiveMap) {
-          mat.emissiveMap.needsUpdate = true;
-        }
-      }
 
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
@@ -203,7 +192,6 @@ export class GLTFScene {
     });
 
     mesh.material = material;
-    console.log('Terminal texture projection-mapped to:', mesh.name);
   }
 
   /**
