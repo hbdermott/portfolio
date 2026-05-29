@@ -357,13 +357,14 @@ export class CanvasTerminal {
       // Ignore modifier-only keys
       if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return;
 
+      this.keyboardSound.play();
+
       if (e.key === 'Enter') {
         this.executeCommand();
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         this.inputBuffer = this.inputBuffer.slice(0, -1);
         this.dirty = true;
-        this.keyboardSound.play();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         this.navigateHistory(-1);
@@ -371,10 +372,8 @@ export class CanvasTerminal {
         e.preventDefault();
         this.navigateHistory(1);
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-        // Printable character
         this.inputBuffer += e.key;
         this.dirty = true;
-        this.keyboardSound.play();
       }
     });
   }
