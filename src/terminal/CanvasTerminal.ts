@@ -54,6 +54,10 @@ export class CanvasTerminal {
   private chromaticFrameCounter = 0;
   private readonly CHROMATIC_FRAME_SKIP = 2; // run every 3rd frame
 
+  // Pre-rendered CRT pattern canvases (lazy-initialized)
+  private aperturePattern: HTMLCanvasElement | null = null;
+  private scanlinePattern: HTMLCanvasElement | null = null;
+
   private charWidth = 9.6;
   private maxVisibleLines = 0;
   private scrollOffset = 0;
@@ -266,12 +270,16 @@ export class CanvasTerminal {
       this.applyVignette(ctx, w, h);
       this.applyScanlines(ctx, w, h);
       this.applyApertureGrille(ctx, w, h);
-      // Chromatic aberration is expensive; skip frames to save ~67% cost.
-      if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
-        this.chromaticFrameCounter = 0;
-        this.applyChromaticAbberation(ctx, w, h);
+      // Skip expensive effects during boot — invisible on dim text anyway
+      const skipExpensive = this.booting;
+      if (!skipExpensive) {
+        // Chromatic aberration is expensive; skip frames to save ~67% cost.
+        if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+          this.chromaticFrameCounter = 0;
+          this.applyChromaticAbberation(ctx, w, h);
+        }
+        this.applyNoise(ctx, w, h, time);
       }
-      this.applyNoise(ctx, w, h, time);
       this.applyFlicker(ctx, w, h, time);
     }
   }
@@ -603,30 +611,53 @@ export class CanvasTerminal {
   private applyScanlines(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const s = this.SCANLINE_STRENGTH;
     if (s <= 0) return;
+    if (!this.scanlinePattern) {
+      this.scanlinePattern = this.buildScanlinePattern(w, h, s);
+    }
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = `rgba(0, 0, 0, ${0.18 * s})`;
-    for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
-    ctx.fillStyle = `rgba(0, 0, 0, ${0.08 * s})`;
-    for (let y = 1; y < h; y += 6) ctx.fillRect(0, y, w, 1);
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = `rgba(51, 255, 51, ${0.04 * s})`;
-    for (let y = 2; y < h; y += 3) ctx.fillRect(0, y, w, 1);
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(this.scanlinePattern, 0, 0);
+  }
+
+  private buildScanlinePattern(w: number, h: number, s: number): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const c = canvas.getContext('2d')!;
+    c.fillStyle = `rgba(0, 0, 0, ${0.18 * s})`;
+    for (let y = 0; y < h; y += 3) c.fillRect(0, y, w, 1);
+    c.fillStyle = `rgba(0, 0, 0, ${0.08 * s})`;
+    for (let y = 1; y < h; y += 6) c.fillRect(0, y, w, 1);
+    c.globalCompositeOperation = 'screen';
+    c.fillStyle = `rgba(51, 255, 51, ${0.04 * s})`;
+    for (let y = 2; y < h; y += 3) c.fillRect(0, y, w, 1);
+    return canvas;
   }
 
   private applyApertureGrille(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const s = this.APERTURE_STRENGTH;
     if (s <= 0) return;
-    ctx.globalCompositeOperation = 'overlay';
-    for (let x = 0; x < w; x += 3) {
-      ctx.fillStyle = `rgba(255, 0, 0, ${0.18 * s})`;
-      ctx.fillRect(x, 0, 1, h);
-      ctx.fillStyle = `rgba(0, 255, 0, ${0.22 * s})`;
-      ctx.fillRect(x + 1, 0, 1, h);
-      ctx.fillStyle = `rgba(0, 0, 255, ${0.18 * s})`;
-      ctx.fillRect(x + 2, 0, 1, h);
+    if (!this.aperturePattern) {
+      this.aperturePattern = this.buildAperturePattern(w, h, s);
     }
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.drawImage(this.aperturePattern, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  private buildAperturePattern(w: number, h: number, s: number): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(w / 3) * 3;
+    canvas.height = h;
+    const c = canvas.getContext('2d')!;
+    for (let x = 0; x < canvas.width; x += 3) {
+      c.fillStyle = `rgba(255, 0, 0, ${0.18 * s})`;
+      c.fillRect(x, 0, 1, h);
+      c.fillStyle = `rgba(0, 255, 0, ${0.22 * s})`;
+      c.fillRect(x + 1, 0, 1, h);
+      c.fillStyle = `rgba(0, 0, 255, ${0.18 * s})`;
+      c.fillRect(x + 2, 0, 1, h);
+    }
+    return canvas;
   }
 
   private applyChromaticAbberation(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -663,18 +694,30 @@ export class CanvasTerminal {
     const s = this.NOISE_STRENGTH;
     if (s <= 0) return;
     const seed = Math.floor(time / 80);
-    const noiseCount = Math.round(1200 * s);
+    const noiseCount = Math.round(800 * s);
     const margin = 4;
     const boundW = w - margin * 2;
     const boundH = h - margin * 2;
+
+    // Batch by color — only 2 fillStyle changes instead of 800
+    ctx.fillStyle = `rgba(200, 255, 200, ${0.22 * s})`;
     for (let i = 0; i < noiseCount; i++) {
       const hash = Math.abs(Math.sin(i * 12.9898 + seed * 78.233));
-      const px = margin + Math.floor(Math.random() * boundW);
-      const py = margin + Math.floor(Math.random() * boundH);
-      ctx.fillStyle = hash > 0.4
-        ? `rgba(200, 255, 200, ${0.22 * s})`
-        : `rgba(0, 0, 0, ${0.18 * s})`;
-      ctx.fillRect(px, py, 1, 1);
+      if (hash > 0.4) {
+        const px = margin + Math.floor(Math.random() * boundW);
+        const py = margin + Math.floor(Math.random() * boundH);
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.18 * s})`;
+    for (let i = 0; i < noiseCount; i++) {
+      const hash = Math.abs(Math.sin(i * 12.9898 + seed * 78.233));
+      if (hash <= 0.4) {
+        const px = margin + Math.floor(Math.random() * boundW);
+        const py = margin + Math.floor(Math.random() * boundH);
+        ctx.fillRect(px, py, 1, 1);
+      }
     }
   }
 

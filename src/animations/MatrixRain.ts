@@ -1,13 +1,9 @@
 /**
- * Classic Matrix rain effect.
+ * Classic Matrix rain effect with pre-rendered streaks.
  *
- * Each "drop" is a vertical streak of characters falling downward.
- * The head (bottom character) is bright white-green.  The trail above
- * it is a fading gradient of green characters.  A semi-transparent
- * black overlay each frame creates the persistence fade.
- *
- * Drops are constrained to a safe area inset from the canvas edges
- * to avoid drawing into CRT bezel / scanline border regions.
+ * Each drop's streak is baked into an offscreen canvas at spawn time.
+ * The render loop only does cheap `drawImage` calls — no per-character
+ * fillText / fillStyle changes on the hot path.
  */
 export class MatrixRain {
   private active = false;
@@ -18,18 +14,19 @@ export class MatrixRain {
   private cols = 0;
   private rows = 0;
   private drops: MatrixDrop[] = [];
+  private charsLen = 0; // cached
 
   private readonly chars =
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
   private readonly fontSize = 14;
   private readonly density = 0.8;
-  private speedScale = 0.45; // global multiplier; 0.45 = slow / cinematic
+  private speedScale = 0.45;
 
   start(w: number, h: number, speedScale = 0.45): void {
     this.active = true;
     this.speedScale = speedScale;
+    this.charsLen = this.chars.length;
 
-    // Safe area: inset from edges so drops don't draw into the CRT bezel.
     this.marginX = Math.round(w * 0.04);
     this.marginY = Math.round(h * 0.04);
     this.safeW = w - this.marginX * 2;
@@ -58,73 +55,119 @@ export class MatrixRain {
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     if (!this.active || this.drops.length === 0) return;
 
-    const fs = this.fontSize;
-
-    // 1. Fade previous frame — old characters dim into a green trail.
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    // Fade overlay — use globalAlpha (faster than parsing rgba string)
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1.0;
 
-    ctx.font = `${fs}px monospace`;
-    ctx.textBaseline = 'top';
+    const fs = this.fontSize;
+    const drops = this.drops;
+    const len = drops.length;
+    const mx = this.marginX;
+    const my = this.marginY;
+    const safeH = this.safeH;
+    const rows = this.rows;
 
-    // 2. Advance and draw every drop.
-    for (const drop of this.drops) {
+    for (let i = 0; i < len; i++) {
+      const drop = drops[i];
       drop.y += drop.speed;
 
-      // Draw each character in the streak, from head (bottom) up.
-      for (let i = 0; i < drop.chars.length; i++) {
-        const row = drop.y - i; // i=0 is head (bottom), i>0 is trail above
-        const py = this.marginY + row * fs;
+      const streakLen = drop.chars.length;
+      const headY = my + drop.y * fs;
+      const topY = headY - (streakLen - 1) * fs;
+      const bottomY = headY + fs;
 
-        // Skip off-screen characters (safe area only)
-        if (py < this.marginY - fs || py > this.marginY + this.safeH) continue;
-
-        // Brightness fades linearly from the head (white) to the end of the tail.
-        const progress = i / drop.chars.length; // 0 at head, 1 at tail end
-        const intensity = Math.max(0.06, 1 - progress);
-
-        if (i === 0) {
-          // Head: pure bright white
-          ctx.fillStyle = '#ffffff';
-        } else {
-          // Trail: white-green near head, pure green mid, dark green at tail
-          const g = Math.floor(255 * intensity);
-          // Slight red/blue tint near the head for a white-green glow
-          const wb = Math.max(0, Math.floor((intensity - 0.5) * 300));
-          ctx.fillStyle = `rgb(${wb}, ${g}, ${wb})`;
+      // Skip if entirely off-screen, but still check respawn
+      if (topY > my + safeH || bottomY < my - fs) {
+        if (drop.y - streakLen > rows) {
+          this.resetDrop(drop, false);
         }
-
-        ctx.fillText(drop.chars[i], this.marginX + drop.x * fs, py);
+        continue;
       }
 
-      // Respawn once the entire streak has fallen off the bottom.
-      if (drop.y - drop.chars.length > this.rows) {
-        Object.assign(drop, this.createDrop(false));
+      ctx.drawImage(drop.streakCanvas, mx + drop.x * fs, topY);
+
+      if (drop.y - streakLen > rows) {
+        this.resetDrop(drop, false);
       }
     }
   }
 
   private createDrop(scatter: boolean): MatrixDrop {
-    const length = Math.floor(Math.random() * 16) + 6; // 6-21 chars
+    const length = Math.floor(Math.random() * 16) + 6;
     const chars: string[] = new Array(length);
     for (let i = 0; i < length; i++) {
-      chars[i] = this.chars[Math.floor(Math.random() * this.chars.length)];
+      chars[i] = this.chars[Math.floor(Math.random() * this.charsLen)];
     }
+
+    const canvas = this.buildStreakCanvas(chars);
 
     return {
       x: Math.floor(Math.random() * this.cols),
       y: scatter
-        ? Math.random() * (this.rows + length) - length // anywhere on or above screen
-        : -length, // start just above the top
-      speed: (Math.random() * 1.0 + 0.3) * this.speedScale, // 0.3-1.3 * scale
+        ? Math.random() * (this.rows + length) - length
+        : -length,
+      speed: (Math.random() * 1.0 + 0.3) * this.speedScale,
       chars,
+      streakCanvas: canvas,
     };
+  }
+
+  private resetDrop(drop: MatrixDrop, scatter: boolean): void {
+    const length = Math.floor(Math.random() * 16) + 6;
+    drop.chars = new Array(length);
+    for (let i = 0; i < length; i++) {
+      drop.chars[i] = this.chars[Math.floor(Math.random() * this.charsLen)];
+    }
+
+    // Reuse the existing canvas — just resize and redraw
+    drop.streakCanvas = this.buildStreakCanvas(drop.chars, drop.streakCanvas);
+    drop.x = Math.floor(Math.random() * this.cols);
+    drop.y = scatter
+      ? Math.random() * (this.rows + length) - length
+      : -length;
+    drop.speed = (Math.random() * 1.0 + 0.3) * this.speedScale;
+  }
+
+  /** Bake a streak's characters into an offscreen canvas.  If an existing
+   *  canvas is passed, it is resized and reused to avoid GC churn. */
+  private buildStreakCanvas(chars: string[], existing?: HTMLCanvasElement): HTMLCanvasElement {
+    const len = chars.length;
+    const fs = this.fontSize;
+    const canvas = existing ?? document.createElement('canvas');
+    canvas.width = fs;
+    canvas.height = len * fs;
+
+    const cctx = canvas.getContext('2d')!;
+    cctx.imageSmoothingEnabled = false;
+    cctx.font = `${fs}px monospace`;
+    cctx.textBaseline = 'top';
+
+    for (let i = 0; i < len; i++) {
+      const progress = i / len;
+      const intensity = Math.max(0.06, 1 - progress);
+
+      if (i === 0) {
+        cctx.fillStyle = '#ffffff';
+      } else {
+        const g = Math.floor(255 * intensity);
+        const wb = Math.max(0, Math.floor((intensity - 0.5) * 300));
+        cctx.fillStyle = `rgb(${wb}, ${g}, ${wb})`;
+      }
+
+      // Head at bottom of canvas, tail at top
+      cctx.fillText(chars[i], 0, (len - 1 - i) * fs);
+    }
+
+    return canvas;
   }
 }
 
 interface MatrixDrop {
-  x: number; // column index within safe area
-  y: number; // head row position (float)
-  speed: number; // rows per frame
-  chars: string[]; // characters in the streak, head first
+  x: number;
+  y: number;
+  speed: number;
+  chars: string[];
+  streakCanvas: HTMLCanvasElement;
 }
