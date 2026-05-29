@@ -41,12 +41,12 @@ function main(): void {
     {
       name: 'Effects & Games',
       color: '#ffaa00',
-      commands: ['matrix', 'glitch', 'snake', 'clear'],
+      commands: ['matrix', 'glitch', 'snake'],
     },
     {
       name: 'Linux',
       color: '#8888ff',
-      commands: ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'touch', 'rm', 'echo', 'whoami', 'date', 'uname'],
+      commands: ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'touch', 'rm', 'echo', 'whoami', 'date', 'uname', 'clear'],
     },
   ];
   new CommandMenu(commandGroups, (cmd) => terminal.injectCommand(cmd));

@@ -228,17 +228,22 @@ export class CanvasTerminal {
       this.renderGlitch(ctx, w, h);
     }
 
-    // CRT effects — applied to ALL modes (matrix, snake, terminal)
-    this.applyVignette(ctx, w, h);
-    this.applyScanlines(ctx, w, h);
-    this.applyApertureGrille(ctx, w, h);
-    // Chromatic aberration is expensive; skip frames to save ~67% cost.
-    if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
-      this.chromaticFrameCounter = 0;
-      this.applyChromaticAbberation(ctx, w, h);
+    // CRT effects — snake gets minimal set to avoid visual distortion
+    if (this.mode === 'snake') {
+      this.applyScanlines(ctx, w, h);
+      this.applyFlicker(ctx, w, h, time);
+    } else {
+      this.applyVignette(ctx, w, h);
+      this.applyScanlines(ctx, w, h);
+      this.applyApertureGrille(ctx, w, h);
+      // Chromatic aberration is expensive; skip frames to save ~67% cost.
+      if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+        this.chromaticFrameCounter = 0;
+        this.applyChromaticAbberation(ctx, w, h);
+      }
+      this.applyNoise(ctx, w, h, time);
+      this.applyFlicker(ctx, w, h, time);
     }
-    this.applyNoise(ctx, w, h, time);
-    this.applyFlicker(ctx, w, h, time);
   }
 
   private renderGlitch(ctx: CanvasRenderingContext2D, w: number, h: number): void {
