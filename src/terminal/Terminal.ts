@@ -1,6 +1,5 @@
 import { OutputBuffer } from './OutputBuffer';
 import { CommandParser } from './CommandParser';
-import type { CommandResult } from '../types';
 
 export class Terminal {
   private container: HTMLElement;

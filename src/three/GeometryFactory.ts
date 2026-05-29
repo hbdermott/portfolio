@@ -69,7 +69,7 @@ export class GeometryFactory {
   }
 
   updateObjects(): void {
-    this.scene.traverse((object) => {
+    this.scene.traverse((object: THREE.Object3D) => {
       if (object instanceof THREE.Mesh && object.userData.rotationSpeed) {
         const speed = object.userData.rotationSpeed;
         object.rotation.x += speed.x;
