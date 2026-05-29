@@ -35,6 +35,7 @@
 .terminal-prompt {
   color: #33ff33;
   font-weight: bold;
+  white-space: nowrap;
 }
 
 .terminal-output {
@@ -52,8 +53,15 @@
 
 .terminal-input-line {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   margin-top: 4px;
+}
+
+.terminal-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
 }
 
 .terminal-input {
@@ -63,26 +71,18 @@
   color: #33ff33;
   font-family: inherit;
   font-size: inherit;
-  flex: 1;
+  width: 100%;
+  min-width: 1ch;
   caret-color: #33ff33;
   text-shadow: 0 0 2px #33ff33, 0 0 5px #33ff33;
   padding: 0;
   margin: 0;
 }
 
-.cursor-blink {
-  display: inline-block;
-  width: 8px;
-  height: 1.2em;
+/* Block cursor effect using caret */
+.terminal-input::selection {
   background: #33ff33;
-  animation: blink-cursor 1s step-end infinite;
-  vertical-align: text-bottom;
-  margin-left: 1px;
-}
-
-@keyframes blink-cursor {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  color: #0a0a0a;
 }
 
 .matrix-overlay {

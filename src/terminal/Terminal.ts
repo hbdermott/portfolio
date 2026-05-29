@@ -59,8 +59,9 @@ export class Terminal {
     line.className = 'terminal-input-line';
     line.innerHTML = `
       <span class="terminal-prompt">${this.promptText}</span>&nbsp;
-      <input type="text" class="terminal-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-      <span class="cursor-blink"></span>
+      <span class="terminal-input-wrapper">
+        <input type="text" class="terminal-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="terminal-command" id="terminal-input-${Date.now()}">
+      </span>
     `;
     return line;
   }
@@ -99,8 +100,8 @@ export class Terminal {
 
     const result = this.commandParser.parse(input);
     if (result.clear) {
-      this.outputBuffer.clear();
-      this.container.innerHTML = '';
+      this.clear();
+      return;
     } else if (result.lines.length > 0) {
       this.outputBuffer.addLines(result.lines, result.error ? 'terminal-error' : 'terminal-output');
     }
