@@ -182,6 +182,11 @@ export class CanvasTerminal {
       this.dirty = true;
     }
 
+    // Matrix rain animates every frame
+    if (this.mode === 'matrix') {
+      this.dirty = true;
+    }
+
     // Auto-start screensaver after idle
     if (this.mode === 'terminal' && !this.booting && time - this.lastActivity > this.IDLE_MS) {
       this.startMatrixRain();

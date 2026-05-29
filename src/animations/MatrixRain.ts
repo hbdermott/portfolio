@@ -6,11 +6,15 @@
  * it is a fading gradient of green characters.  A semi-transparent
  * black overlay each frame creates the persistence fade.
  *
- * Drops respawn at the top once the entire streak has fallen off
- * the bottom of the screen, ensuring continuous rain.
+ * Drops are constrained to a safe area inset from the canvas edges
+ * to avoid drawing into CRT bezel / scanline border regions.
  */
 export class MatrixRain {
   private active = false;
+  private safeW = 0;
+  private safeH = 0;
+  private marginX = 0;
+  private marginY = 0;
   private cols = 0;
   private rows = 0;
   private drops: MatrixDrop[] = [];
@@ -18,13 +22,20 @@ export class MatrixRain {
   private readonly chars =
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
   private readonly fontSize = 14;
-  // How many drops relative to columns (0.8 = 80% of columns have a drop)
   private readonly density = 0.8;
 
   start(w: number, h: number): void {
     this.active = true;
-    this.cols = Math.ceil(w / this.fontSize);
-    this.rows = Math.ceil(h / this.fontSize);
+
+    // Safe area: inset from edges so drops don't draw into the CRT bezel.
+    // These margins match roughly the bezel padding used in the 3D projection.
+    this.marginX = Math.round(w * 0.04);
+    this.marginY = Math.round(h * 0.04);
+    this.safeW = w - this.marginX * 2;
+    this.safeH = h - this.marginY * 2;
+
+    this.cols = Math.ceil(this.safeW / this.fontSize);
+    this.rows = Math.ceil(this.safeH / this.fontSize);
 
     const count = Math.floor(this.cols * this.density);
     this.drops = new Array(count);
@@ -62,10 +73,10 @@ export class MatrixRain {
       // Draw each character in the streak, from head (bottom) up.
       for (let i = 0; i < drop.chars.length; i++) {
         const row = drop.y - i; // i=0 is head (bottom), i>0 is trail above
-        const py = row * fs;
+        const py = this.marginY + row * fs;
 
-        // Skip off-screen characters
-        if (py < -fs || py > h) continue;
+        // Skip off-screen characters (safe area only)
+        if (py < this.marginY - fs || py > this.marginY + this.safeH) continue;
 
         if (i === 0) {
           // Head: bright white-green
@@ -77,7 +88,7 @@ export class MatrixRain {
           ctx.fillStyle = `rgb(0, ${g}, 0)`;
         }
 
-        ctx.fillText(drop.chars[i], drop.x * fs, py);
+        ctx.fillText(drop.chars[i], this.marginX + drop.x * fs, py);
       }
 
       // Respawn once the entire streak has fallen off the bottom.
@@ -106,7 +117,7 @@ export class MatrixRain {
 }
 
 interface MatrixDrop {
-  x: number; // column index
+  x: number; // column index within safe area
   y: number; // head row position (float)
   speed: number; // rows per frame
   chars: string[]; // characters in the streak, head first
