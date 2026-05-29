@@ -18,13 +18,12 @@ export class MatrixRain {
 
   private readonly chars =
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
-  private readonly fontSize = 14;
-  private readonly density = 0.8;
-  private speedScale = 0.45;
+  private readonly fontSize = 20;
+  private readonly density = 2.0;
+  private readonly speedScale = 0.2;
 
-  start(w: number, h: number, speedScale = 0.45): void {
+  start(w: number, h: number): void {
     this.active = true;
-    this.speedScale = speedScale;
     this.charsLen = this.chars.length;
 
     this.marginX = Math.round(w * 0.04);
