@@ -1,16 +1,13 @@
-import { Terminal } from './terminal/Terminal';
 import { CommandParser } from './terminal/CommandParser';
 import { PortfolioCommands } from './commands/PortfolioCommands';
 import { LinuxEmulator } from './commands/LinuxEmulator';
 import { FileSystem } from './commands/FileSystem';
-import { CRTShader } from './crt/CRTShader';
-import { CRTOverlay } from './crt/CRTOverlay';
-import { SceneManager } from './three/SceneManager';
-import { ASCIIRenderer } from './three/ASCIIRenderer';
-import { MatrixRain } from './animations/MatrixRain';
-import { GlitchEffect } from './animations/GlitchEffect';
+import { CanvasTerminal } from './terminal/CanvasTerminal';
+import { RoomScene } from './room/RoomScene';
+import { MatrixRain3D } from './animations/MatrixRain3D';
 
 function main(): void {
+  // Initialize command system
   const fileSystem = new FileSystem();
   const portfolioCommands = new PortfolioCommands();
   const linuxEmulator = new LinuxEmulator(fileSystem);
@@ -20,21 +17,22 @@ function main(): void {
     linuxEmulator.getCommands()
   );
 
-  const crtShader = new CRTShader('crt-shader-canvas');
-  const crtOverlay = new CRTOverlay('crt-overlay');
-  crtShader.start();
+  // Create canvas-based terminal
+  const terminal = new CanvasTerminal(commandParser);
 
-  const asciiCanvas = document.createElement('canvas');
-  asciiCanvas.width = 120;
-  asciiCanvas.height = 80;
-  const sceneManager = new SceneManager(asciiCanvas);
-  const asciiRenderer = new ASCIIRenderer(sceneManager, 'ascii-background');
-  asciiRenderer.start();
+  // Create 3D room scene
+  const container = document.getElementById('canvas-container');
+  if (!container) {
+    console.error('Canvas container not found');
+    return;
+  }
 
-  const matrixRain = new MatrixRain('screen-glass');
-  const glitchEffect = new GlitchEffect('crt-overlay');
+  const roomScene = new RoomScene(container, terminal);
+  roomScene.start();
 
-  const terminal = new Terminal('terminal', commandParser);
+  // Hook up 3D effects to commands
+  const scene = roomScene.getScene();
+  const matrixRain = new MatrixRain3D(scene);
 
   const originalMatrix = portfolioCommands.getCommands().get('matrix')!;
   portfolioCommands.getCommands().set('matrix', (args) => {
@@ -42,26 +40,9 @@ function main(): void {
     return originalMatrix(args);
   });
 
-  const originalGlitch = portfolioCommands.getCommands().get('glitch')!;
-  portfolioCommands.getCommands().set('glitch', (args) => {
-    glitchEffect.trigger();
-    crtShader.setGlitchIntensity(1.0);
-    crtOverlay.triggerGlitch();
-    return originalGlitch(args);
-  });
-
-  document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('#terminal')) {
-      terminal.focus();
-    }
-  });
-
-  console.log('CRT Terminal Portfolio initialized');
+  console.log('3D CRT Terminal Portfolio initialized');
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    main();
-  }, 500);
+  main();
 });
