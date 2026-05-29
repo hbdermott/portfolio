@@ -1,7 +1,7 @@
 body {
   margin: 0;
   padding: 0;
-  background: #0a0a0a;
+  background: #080808;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -10,96 +10,139 @@ body {
   overflow: hidden;
 }
 
-#crt-monitor {
-  position: relative;
-  width: 90vw;
-  max-width: 1000px;
-  aspect-ratio: 4/3;
-  /* 3D perspective for convex effect */
-  perspective: 1200px;
+/* ============================================================
+   CRT ASSEMBLY - Entire monitor + stand
+   ============================================================ */
+#crt-assembly {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Responsive: fit within viewport, maintain aspect, cap height */
+  width: min(85vw, 900px, calc(80vh * 4 / 3));
+  max-width: 900px;
+  /* Let contents determine height */
 }
 
+/* ============================================================
+   MONITOR HEAD - Screen + frame
+   ============================================================ */
+#crt-monitor {
+  position: relative;
+  width: 100%;
+  /* 4:3 aspect ratio for the screen area */
+  aspect-ratio: 4 / 3;
+  /* 3D perspective for convex effect */
+  perspective: 1200px;
+  perspective-origin: 50% 40%;
+}
+
+/* Outer plastic frame casing */
 #monitor-frame {
   position: relative;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    145deg,
-    #4a4a4a 0%,
-    #3a3a3a 10%,
-    #2a2a2a 30%,
-    #1a1a1a 60%,
-    #0d0d0d 100%
-  );
-  border-radius: 30px;
-  padding: 28px;
+  /* Convex bulge toward viewer */
+  transform: perspective(1000px) rotateX(1.2deg) scale(1.01);
+  transform-style: preserve-3d;
+  /* Molded plastic texture with curved light falloff */
+  background:
+    /* Center highlight - curved surface catches light */
+    radial-gradient(
+      ellipse 70% 60% at 50% 30%,
+      rgba(80, 80, 80, 0.6) 0%,
+      transparent 60%
+    ),
+    /* Edge darkening - curved surface falls away */
+    radial-gradient(
+      ellipse 90% 90% at 50% 50%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.4) 100%
+    ),
+    /* Base dark plastic color */
+    linear-gradient(
+      165deg,
+      #3a3a3a 0%,
+      #2a2a2a 20%,
+      #1a1a1a 50%,
+      #0d0d0d 100%
+    );
+  /* Uniform rounded corners on all sides */
+  border-radius: 32px;
+  padding: 22px;
+  box-sizing: border-box;
   box-shadow:
-    /* Outer plastic frame highlights */
-    inset 0 1px 2px rgba(255,255,255,0.1),
-    /* Outer frame borders */
-    0 0 0 1px #5a5a5a,
-    0 0 0 3px #3a3a3a,
-    0 0 0 5px #2a2a2a,
-    0 0 0 7px #1a1a1a,
+    /* Outer edge highlights */
+    inset 0 1px 2px rgba(255, 255, 255, 0.08),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5),
+    /* Frame border rings */
+    0 0 0 1px #4a4a4a,
+    0 0 0 3px #2a2a2a,
+    0 0 0 5px #1a1a1a,
     /* Deep drop shadow */
-    0 40px 100px rgba(0,0,0,0.95),
-    0 15px 40px rgba(0,0,0,0.8),
-    /* Subtle green ambient glow */
+    0 25px 60px rgba(0, 0, 0, 0.9),
+    0 10px 25px rgba(0, 0, 0, 0.7),
+    /* Ambient glow */
     0 0 80px rgba(51, 255, 51, 0.04);
 }
 
-/* Monitor control panel at bottom */
-#monitor-frame::after {
-  content: '';
-  position: absolute;
-  bottom: -22px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 180px;
-  height: 18px;
-  background: linear-gradient(to bottom, #2a2a2a, #151515);
-  border-radius: 0 0 10px 10px;
-  box-shadow:
-    0 2px 8px rgba(0,0,0,0.5),
-    inset 0 1px 1px rgba(255,255,255,0.05);
-}
-
+/* ============================================================
+   SCREEN BEZEL - Inner frame around screen
+   ============================================================ */
 #screen-bezel {
   position: relative;
   width: 100%;
   height: 100%;
-  background: #050505;
-  /* Strong elliptical curve for CRT barrel shape */
-  border-radius: 120px / 30px;
+  background: #060606;
+  /* Slightly smaller radius than frame, same proportions */
+  border-radius: 20px;
   overflow: hidden;
   box-shadow:
-    /* Deep inner shadow for recessed look */
-    inset 0 0 60px rgba(0,0,0,1),
-    inset 0 0 100px rgba(0,0,0,0.8),
-    /* Subtle top highlight on bezel */
-    inset 0 2px 3px rgba(255,255,255,0.03);
+    /* Deep inner shadow = screen is recessed */
+    inset 0 0 30px rgba(0, 0, 0, 0.9),
+    inset 0 0 60px rgba(0, 0, 0, 0.7),
+    /* Top edge highlight on bezel */
+    inset 0 1px 2px rgba(255, 255, 255, 0.04);
 }
 
+/* ============================================================
+   SCREEN RECESS - Smooth transition from bezel to screen
+   ============================================================ */
+#screen-recess {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  /* The recess creates the "screen sits behind glass" feel */
+  background:
+    /* Subtle inner shadow at edges */
+    radial-gradient(
+      ellipse 95% 95% at 50% 50%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.5) 100%
+    );
+}
+
+/* ============================================================
+   SCREEN CONTAINER - The actual display area
+   ============================================================ */
 #screen-container {
   position: relative;
-  width: calc(100% - 48px);
-  height: calc(100% - 48px);
-  margin: 24px;
-  /* Match the bezel curve but slightly smaller */
-  border-radius: 100px / 25px;
+  width: 100%;
+  height: 100%;
+  /* Match bezel curve proportionally */
+  border-radius: 12px;
   overflow: hidden;
   background: #020202;
-  /* 3D convex transform */
-  transform: scale(1.02) perspective(600px) rotateX(0.5deg);
-  transform-origin: center center;
-  /* Screen edge darkening for barrel distortion vignette */
+  /* Screen edge darkening (vignette) */
   box-shadow:
-    inset 0 0 80px rgba(0,0,0,0.9),
-    inset 0 0 150px rgba(0,0,0,0.6),
-    inset 0 0 40px rgba(0,0,0,0.95);
+    inset 0 0 50px rgba(0, 0, 0, 0.9),
+    inset 0 0 100px rgba(0, 0, 0, 0.6);
 }
 
-/* Glass reflection - curved CRT gloss */
+/* Glass reflection overlay */
 #screen-container::before {
   content: '';
   position: absolute;
@@ -107,18 +150,18 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: 
-    /* Subtle curved gloss at top */
+  background:
+    /* Curved gloss at top of screen */
     radial-gradient(
-      ellipse 80% 40% at 50% 0%,
-      rgba(255,255,255,0.04) 0%,
-      transparent 60%
+      ellipse 80% 35% at 50% 0%,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 55%
     ),
     /* Corner reflection */
     radial-gradient(
-      ellipse 40% 40% at 15% 15%,
-      rgba(255,255,255,0.03) 0%,
-      transparent 70%
+      ellipse 35% 35% at 12% 12%,
+      rgba(255, 255, 255, 0.025) 0%,
+      transparent 65%
     );
   pointer-events: none;
   z-index: 50;
@@ -134,32 +177,36 @@ body {
   width: 100%;
   height: 100%;
   background: radial-gradient(
-    ellipse 90% 80% at 50% 50%,
-    transparent 50%,
-    rgba(0,0,0,0.4) 80%,
-    rgba(0,0,0,0.8) 100%
+    ellipse 92% 85% at 50% 50%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.5) 85%,
+    rgba(0, 0, 0, 0.85) 100%
   );
   pointer-events: none;
   z-index: 52;
   border-radius: inherit;
 }
 
+/* ============================================================
+   BRAND & POWER LED
+   ============================================================ */
 #monitor-brand {
   position: absolute;
-  bottom: -14px;
+  bottom: -16px;
   left: 50%;
   transform: translateX(-50%);
-  color: #444;
+  color: #3a3a3a;
   font-size: 8px;
   letter-spacing: 5px;
   text-transform: uppercase;
   z-index: 10;
+  text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.8);
 }
 
 #power-led {
   position: absolute;
   bottom: -14px;
-  right: 50px;
+  right: 55px;
   width: 5px;
   height: 5px;
   background: #33ff33;
@@ -175,4 +222,146 @@ body {
 @keyframes led-blink {
   0%, 90%, 100% { opacity: 1; }
   95% { opacity: 0.3; }
+}
+
+/* ============================================================
+   MONITOR STAND - Neck + Base
+   ============================================================ */
+#monitor-stand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -2px;
+  z-index: 5;
+}
+
+/* Stand neck (connects monitor to base) */
+#stand-neck {
+  width: 60px;
+  height: 70px;
+  background: linear-gradient(
+    90deg,
+    #1a1a1a 0%,
+    #2a2a2a 30%,
+    #2a2a2a 70%,
+    #1a1a1a 100%
+  );
+  /* Trapezoid shape - wider at top where it meets monitor */
+  clip-path: polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%);
+  box-shadow:
+    inset 0 0 10px rgba(0, 0, 0, 0.8),
+    0 5px 15px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+
+/* Highlight on neck to show cylindrical shape */
+#neck-highlight {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 100%
+  );
+}
+
+/* Base assembly */
+#stand-base {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -2px;
+}
+
+/* Top plate of base (wider part) */
+#base-top {
+  width: 160px;
+  height: 16px;
+  background: linear-gradient(
+    180deg,
+    #2a2a2a 0%,
+    #1a1a1a 100%
+  );
+  border-radius: 8px 8px 4px 4px;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    0 3px 10px rgba(0, 0, 0, 0.6);
+}
+
+/* Bottom foot of base */
+#base-foot {
+  width: 200px;
+  height: 10px;
+  background: linear-gradient(
+    180deg,
+    #1a1a1a 0%,
+    #0d0d0d 100%
+  );
+  border-radius: 0 0 6px 6px;
+  box-shadow:
+    0 5px 15px rgba(0, 0, 0, 0.7),
+    0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================ */
+@media (max-width: 600px) {
+  #crt-assembly {
+    width: min(92vw, calc(85vh * 4 / 3));
+  }
+
+  #monitor-frame {
+    border-radius: 20px;
+    padding: 12px;
+  }
+
+  #screen-bezel {
+    border-radius: 12px;
+  }
+
+  #screen-recess {
+    padding: 8px;
+  }
+
+  #screen-container {
+    border-radius: 6px;
+  }
+
+  #terminal {
+    font-size: 11px;
+    padding: 12px 14px;
+  }
+
+  #stand-neck {
+    width: 40px;
+    height: 45px;
+  }
+
+  #base-top {
+    width: 100px;
+    height: 10px;
+  }
+
+  #base-foot {
+    width: 130px;
+    height: 6px;
+  }
+}
+
+@media (max-height: 700px) {
+  #crt-assembly {
+    width: min(85vw, calc(80vh * 4 / 3));
+  }
+}
+
+@media (min-width: 1400px) {
+  #crt-assembly {
+    width: min(80vw, 1000px, calc(85vh * 4 / 3));
+  }
 }

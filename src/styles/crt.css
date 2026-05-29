@@ -36,6 +36,7 @@
       transparent 4px
     );
   pointer-events: none;
+  border-radius: inherit;
 }
 
 #crt-shader-canvas {
@@ -85,6 +86,11 @@
 /* Occasional screen-wide flicker */
 #screen-container {
   animation: screen-flicker 10s infinite;
+  /* Edge darkening + phosphor glow */
+  box-shadow:
+    inset 0 0 50px rgba(0,0,0,0.9),
+    inset 0 0 100px rgba(0,0,0,0.6),
+    0 0 60px rgba(51, 255, 51, 0.02);
 }
 
 @keyframes screen-flicker {
@@ -94,20 +100,9 @@
   99% { opacity: 0.98; }
 }
 
-/* Screen edge glow - phosphor bleed */
-#screen-container {
-  box-shadow:
-    inset 0 0 80px rgba(0,0,0,0.9),
-    inset 0 0 150px rgba(0,0,0,0.6),
-    inset 0 0 40px rgba(0,0,0,0.95),
-    /* Subtle green phosphor glow around edges */
-    0 0 60px rgba(51, 255, 51, 0.02);
-}
-
-/* Phosphor dot pitch simulation */
+/* Phosphor dot pitch simulation on terminal text */
 #terminal {
-  /* RGB subpixel hinting effect */
-  text-shadow: 
+  text-shadow:
     0.5px 0 0 rgba(255, 0, 0, 0.1),
     -0.5px 0 0 rgba(0, 255, 0, 0.1),
     0 0.5px 0 rgba(0, 0, 255, 0.1),
