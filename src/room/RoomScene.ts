@@ -33,8 +33,8 @@ export class RoomScene {
       0.1,
       100
     );
-    this.camera.position.set(0.5, 1.05, 1.8);
-    this.camera.lookAt(0, 0.92, 0);
+    this.camera.position.set(0.5, 1.08, 1.8);
+    this.camera.lookAt(0, 0.96, 0);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -57,7 +57,7 @@ export class RoomScene {
     this.controls.maxDistance = 4;
     this.controls.maxPolarAngle = Math.PI / 1.8;
     this.controls.minPolarAngle = Math.PI / 6;
-    this.controls.target.set(0, 0.92, 0);
+    this.controls.target.set(0, 0.96, 0);
     this.controls.update();
 
     this.setupLighting();
@@ -122,15 +122,15 @@ export class RoomScene {
     // CRT Monitor
     this.crtMonitor = new CRTMonitor3D(this.terminal.getTexture());
     const monitorMesh = this.crtMonitor.getMesh();
-    // Position on desk surface (desk top at 0.74, cabinet height 0.38, half=0.19)
-    monitorMesh.position.set(0, 0.93, -0.15);
-    monitorMesh.rotation.x = -0.06;
+    // Position on desk: desk top at 0.74, monitor half-height 0.21
+    monitorMesh.position.set(0, 0.95, -0.12);
+    monitorMesh.rotation.x = -0.04;
     this.scene.add(monitorMesh);
 
     // Keyboard
     const keyboard = new Keyboard();
     const keyboardMesh = keyboard.getMesh();
-    keyboardMesh.position.set(0, 0.755, 0.22);
+    keyboardMesh.position.set(0, 0.753, 0.18);
     this.scene.add(keyboardMesh);
 
     // Add subtle dust particles in the air

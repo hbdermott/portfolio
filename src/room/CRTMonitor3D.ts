@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 export class CRTMonitor3D {
   private group: THREE.Group;
@@ -6,12 +7,18 @@ export class CRTMonitor3D {
   private screenTexture: THREE.CanvasTexture;
   private glowLight!: THREE.PointLight;
 
+  // Cabinet dimensions
+  private readonly cabW = 0.50;
+  private readonly cabH = 0.42;
+  private readonly cabD = 0.44;
+  private readonly cornerR = 0.025;
+
   constructor(screenTexture: THREE.CanvasTexture) {
     this.screenTexture = screenTexture;
     this.group = new THREE.Group();
 
     this.createCabinet();
-    this.createBezel();
+    this.createBezelFrame();
     this.createScreen();
     this.createDetails();
     this.createGlowLight();
@@ -26,50 +33,51 @@ export class CRTMonitor3D {
   }
 
   private createCabinet(): void {
-    const cabinetColor = 0x222222;
     const cabinetMaterial = new THREE.MeshStandardMaterial({
-      color: cabinetColor,
-      roughness: 0.6,
-      metalness: 0.15,
+      color: 0x252525,
+      roughness: 0.55,
+      metalness: 0.12,
     });
 
-    // Main cabinet body - slightly smaller and more compact
-    const cabinetGeo = new THREE.BoxGeometry(0.46, 0.38, 0.42);
+    // Rounded box for the main cabinet body
+    const cabinetGeo = new RoundedBoxGeometry(
+      this.cabW, this.cabH, this.cabD, 4, this.cornerR
+    );
     const cabinet = new THREE.Mesh(cabinetGeo, cabinetMaterial);
     cabinet.castShadow = true;
+    cabinet.receiveShadow = true;
     this.group.add(cabinet);
 
-    // Side vents (left)
-    this.createVents(-0.231, 0, 0, 'left');
-    // Side vents (right)
-    this.createVents(0.231, 0, 0, 'right');
+    // Side vents
+    this.createVents(-this.cabW / 2 - 0.002, 0, 0.05, 'left');
+    this.createVents(this.cabW / 2 + 0.002, 0, 0.05, 'right');
 
-    // Top handle/vent area
-    const topGeo = new THREE.BoxGeometry(0.26, 0.025, 0.08);
-    const topMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
-      roughness: 0.7,
+    // Top handle ridge
+    const ridgeGeo = new THREE.BoxGeometry(0.28, 0.018, 0.10);
+    const ridgeMat = new THREE.MeshStandardMaterial({
+      color: 0x1c1c1c,
+      roughness: 0.6,
       metalness: 0.2,
     });
-    const top = new THREE.Mesh(topGeo, topMat);
-    top.position.set(0, 0.195, -0.08);
-    this.group.add(top);
+    const ridge = new THREE.Mesh(ridgeGeo, ridgeMat);
+    ridge.position.set(0, this.cabH / 2 + 0.002, -0.06);
+    this.group.add(ridge);
   }
 
   private createVents(x: number, y: number, z: number, side: string): void {
-    const ventMaterial = new THREE.MeshStandardMaterial({
+    const ventMat = new THREE.MeshStandardMaterial({
       color: 0x111111,
-      roughness: 0.9,
-      metalness: 0.1,
+      roughness: 0.95,
+      metalness: 0.05,
     });
 
-    const ventGeo = new THREE.BoxGeometry(0.005, 0.12, 0.26);
-    const vent = new THREE.Mesh(ventGeo, ventMaterial);
+    const ventGeo = new THREE.BoxGeometry(0.004, 0.14, 0.28);
+    const vent = new THREE.Mesh(ventGeo, ventMat);
     vent.position.set(x, y, z);
     this.group.add(vent);
 
-    // Vent slits
-    const slitGeo = new THREE.BoxGeometry(0.008, 0.003, 0.22);
+    // Horizontal vent slits
+    const slitGeo = new THREE.BoxGeometry(0.006, 0.002, 0.24);
     const slitMat = new THREE.MeshStandardMaterial({
       color: 0x0a0a0a,
       roughness: 1.0,
@@ -78,145 +86,188 @@ export class CRTMonitor3D {
 
     for (let i = -2; i <= 2; i++) {
       const slit = new THREE.Mesh(slitGeo, slitMat);
-      slit.position.set(x + (side === 'left' ? -0.005 : 0.005), i * 0.018, z);
+      slit.position.set(
+        x + (side === 'left' ? -0.004 : 0.004),
+        i * 0.016,
+        z
+      );
       this.group.add(slit);
     }
   }
 
-  private createBezel(): void {
-    const bezelColor = 0x2a2a2a;
-    const bezelMaterial = new THREE.MeshStandardMaterial({
-      color: bezelColor,
-      roughness: 0.5,
-      metalness: 0.2,
+  private createBezelFrame(): void {
+    // Create a bezel frame with a hole using ExtrudeGeometry
+    // Outer rounded rect, inner rounded rect hole
+    const outerW = this.cabW - 0.02;
+    const outerH = this.cabH - 0.02;
+    const innerW = 0.38;
+    const innerH = 0.30;
+    const outerR = 0.02;
+    const innerR = 0.01;
+
+    const shape = new THREE.Shape();
+    this.drawRoundedRect(shape, -outerW / 2, -outerH / 2, outerW, outerH, outerR);
+
+    const hole = new THREE.Path();
+    this.drawRoundedRect(hole, -innerW / 2, -innerH / 2, innerW, innerH, innerR);
+    shape.holes.push(hole);
+
+    const bezelGeo = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.018,
+      bevelEnabled: false,
     });
+    // Extrude goes from z=0 to z=depth, face the front
+    bezelGeo.computeVertexNormals();
 
-    const bezelThickness = 0.03;
-    const bezelDepth = 0.02;
+    const bezelMat = new THREE.MeshStandardMaterial({
+      color: 0x2a2a2a,
+      roughness: 0.5,
+      metalness: 0.18,
+    });
+    const bezel = new THREE.Mesh(bezelGeo, bezelMat);
+    // Position at front face of cabinet
+    bezel.position.z = this.cabD / 2 - 0.005;
+    bezel.castShadow = true;
+    this.group.add(bezel);
 
-    // Top bezel
-    const topBezelGeo = new THREE.BoxGeometry(0.46, bezelThickness, bezelDepth);
-    const topBezel = new THREE.Mesh(topBezelGeo, bezelMaterial);
-    topBezel.position.set(0, 0.155, 0.205);
-    this.group.add(topBezel);
+    // Inner shadow ring (recessed area behind bezel)
+    const recessGeo = new THREE.PlaneGeometry(innerW + 0.01, innerH + 0.01);
+    const recessMat = new THREE.MeshStandardMaterial({
+      color: 0x080808,
+      roughness: 0.9,
+      metalness: 0.0,
+    });
+    const recess = new THREE.Mesh(recessGeo, recessMat);
+    recess.position.z = this.cabD / 2 - 0.012;
+    this.group.add(recess);
+  }
 
-    // Bottom bezel
-    const bottomBezelGeo = new THREE.BoxGeometry(0.46, bezelThickness, bezelDepth);
-    const bottomBezel = new THREE.Mesh(bottomBezelGeo, bezelMaterial);
-    bottomBezel.position.set(0, -0.155, 0.205);
-    this.group.add(bottomBezel);
-
-    // Left bezel
-    const leftBezelGeo = new THREE.BoxGeometry(bezelThickness, 0.28, bezelDepth);
-    const leftBezel = new THREE.Mesh(leftBezelGeo, bezelMaterial);
-    leftBezel.position.set(-0.185, 0, 0.205);
-    this.group.add(leftBezel);
-
-    // Right bezel
-    const rightBezelGeo = new THREE.BoxGeometry(bezelThickness, 0.28, bezelDepth);
-    const rightBezel = new THREE.Mesh(rightBezelGeo, bezelMaterial);
-    rightBezel.position.set(0.185, 0, 0.205);
-    this.group.add(rightBezel);
+  private drawRoundedRect(
+    path: THREE.Shape | THREE.Path,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number
+  ): void {
+    path.moveTo(x + r, y);
+    path.lineTo(x + w - r, y);
+    path.quadraticCurveTo(x + w, y, x + w, y + r);
+    path.lineTo(x + w, y + h - r);
+    path.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    path.lineTo(x + r, y + h);
+    path.quadraticCurveTo(x, y + h, x, y + h - r);
+    path.lineTo(x, y + r);
+    path.quadraticCurveTo(x, y, x + r, y);
   }
 
   private createScreen(): void {
-    const screenWidth = 0.34;
-    const screenHeight = 0.25;
-    const segmentsW = 32;
-    const segmentsH = 24;
+    const screenW = 0.36;
+    const screenH = 0.26;
+    const segW = 32;
+    const segH = 24;
 
-    // Create plane with many segments for curvature
-    const geometry = new THREE.PlaneGeometry(screenWidth, screenHeight, segmentsW, segmentsH);
+    // Plane facing +Z (toward viewer)
+    const geometry = new THREE.PlaneGeometry(screenW, screenH, segW, segH);
 
-    // Apply subtle curvature - bulge outward toward viewer
-    const curvature = 0.25;
+    // CONVEX curvature: center bulges forward toward viewer
+    // Formula: z = curvature * (1 - distSq) so center is highest
+    const curvature = 0.025;
     const positions = geometry.attributes.position;
     for (let i = 0; i < positions.count; i++) {
       const x = positions.getX(i);
       const y = positions.getY(i);
-      // Normalized distance from center (0 to 1 at corners)
-      const distSq = (x / (screenWidth * 0.5)) ** 2 + (y / (screenHeight * 0.5)) ** 2;
-      const z = distSq * curvature;
+      const nx = x / (screenW * 0.5);
+      const ny = y / (screenH * 0.5);
+      const distSq = nx * nx + ny * ny;
+      // Clamp distSq so edges don't overshoot
+      const clampedDist = Math.min(distSq, 1.0);
+      // Center forward, edges back
+      const z = curvature * (1 - clampedDist);
       positions.setZ(i, z);
     }
     geometry.computeVertexNormals();
 
-    // Screen material - emissive for glow effect
+    // Screen material with emissive glow
     const material = new THREE.MeshStandardMaterial({
       map: this.screenTexture,
       emissive: 0x0a1a0a,
       emissiveMap: this.screenTexture,
-      emissiveIntensity: 0.35,
-      roughness: 0.3,
-      metalness: 0.1,
+      emissiveIntensity: 0.3,
+      roughness: 0.25,
+      metalness: 0.05,
       side: THREE.FrontSide,
     });
 
     this.screenMesh = new THREE.Mesh(geometry, material);
-    // Position at front of cabinet, not protruding past bezel
-    this.screenMesh.position.set(0, 0, 0.195);
+    // Position screen so its center bulge reaches the bezel front
+    // Cabinet front is at z = cabD/2 = 0.22
+    // Screen center (z=curvature=0.025) should be at or slightly behind bezel
+    this.screenMesh.position.set(0, 0, this.cabD / 2 - curvature - 0.005);
     this.group.add(this.screenMesh);
 
-    // Screen glass reflection overlay - exactly matches screen curvature
-    const glassGeo = new THREE.PlaneGeometry(screenWidth * 1.01, screenHeight * 1.01, segmentsW, segmentsH);
-    const glassPositions = glassGeo.attributes.position;
-    for (let i = 0; i < glassPositions.count; i++) {
-      const x = glassPositions.getX(i);
-      const y = glassPositions.getY(i);
-      const distSq = (x / (screenWidth * 0.5)) ** 2 + (y / (screenHeight * 0.5)) ** 2;
-      const z = distSq * curvature + 0.001;
-      glassPositions.setZ(i, z);
+    // Glass overlay matching convex curve
+    const glassGeo = new THREE.PlaneGeometry(screenW * 1.01, screenH * 1.01, segW, segH);
+    const glassPos = glassGeo.attributes.position;
+    for (let i = 0; i < glassPos.count; i++) {
+      const x = glassPos.getX(i);
+      const y = glassPos.getY(i);
+      const nx = x / (screenW * 0.5);
+      const ny = y / (screenH * 0.5);
+      const distSq = nx * nx + ny * ny;
+      const clampedDist = Math.min(distSq, 1.0);
+      const z = curvature * (1 - clampedDist) + 0.001;
+      glassPos.setZ(i, z);
     }
     glassGeo.computeVertexNormals();
 
     const glassMat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.03,
+      opacity: 0.025,
       roughness: 0.0,
       metalness: 0.0,
-      transmission: 0.1,
+      transmission: 0.15,
       side: THREE.FrontSide,
     });
     const glass = new THREE.Mesh(glassGeo, glassMat);
-    glass.position.set(0, 0, 0.198);
+    glass.position.copy(this.screenMesh.position);
+    glass.position.z += 0.002;
     this.group.add(glass);
   }
 
   private createDetails(): void {
     // Power LED
-    const ledGeo = new THREE.SphereGeometry(0.006, 8, 8);
-    const ledMat = new THREE.MeshBasicMaterial({
-      color: 0x33ff33,
-    });
+    const ledGeo = new THREE.SphereGeometry(0.005, 8, 8);
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x33ff33 });
     const led = new THREE.Mesh(ledGeo, ledMat);
-    led.position.set(0.16, -0.17, 0.215);
+    led.position.set(0.17, -0.175, this.cabD / 2 + 0.008);
     this.group.add(led);
 
-    // LED glow
-    const glowGeo = new THREE.SphereGeometry(0.01, 8, 8);
+    // LED glow halo
+    const glowGeo = new THREE.SphereGeometry(0.009, 8, 8);
     const glowMat = new THREE.MeshBasicMaterial({
       color: 0x33ff33,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.25,
     });
     const glow = new THREE.Mesh(glowGeo, glowMat);
     glow.position.copy(led.position);
     this.group.add(glow);
 
-    // Brand name plate
-    const plateGeo = new THREE.BoxGeometry(0.1, 0.012, 0.004);
+    // Brand plate
+    const plateGeo = new THREE.BoxGeometry(0.10, 0.012, 0.004);
     const plateMat = new THREE.MeshStandardMaterial({
       color: 0x1a1a1a,
       roughness: 0.8,
       metalness: 0.3,
     });
     const plate = new THREE.Mesh(plateGeo, plateMat);
-    plate.position.set(0, -0.17, 0.215);
+    plate.position.set(0, -0.175, this.cabD / 2 + 0.006);
     this.group.add(plate);
 
     // Power button
-    const btnGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.004, 12);
+    const btnGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.004, 12);
     const btnMat = new THREE.MeshStandardMaterial({
       color: 0x333333,
       roughness: 0.4,
@@ -224,13 +275,13 @@ export class CRTMonitor3D {
     });
     const btn = new THREE.Mesh(btnGeo, btnMat);
     btn.rotation.x = Math.PI / 2;
-    btn.position.set(0.2, -0.17, 0.215);
+    btn.position.set(0.21, -0.175, this.cabD / 2 + 0.006);
     this.group.add(btn);
   }
 
   private createGlowLight(): void {
-    this.glowLight = new THREE.PointLight(0x33ff33, 0.6, 2.5);
-    this.glowLight.position.set(0, 0, 0.4);
+    this.glowLight = new THREE.PointLight(0x33ff33, 0.5, 2.0);
+    this.glowLight.position.set(0, 0, this.cabD / 2 + 0.15);
     this.glowLight.castShadow = false;
     this.group.add(this.glowLight);
   }
