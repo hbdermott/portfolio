@@ -1,32 +1,37 @@
 /**
- * Classic Matrix rain screensaver.
+ * Classic Matrix rain effect.
  *
- *  • Integer positions only — no float stutter.
- *  • Multiple drops per column for density.
- *  • Light screen fade for organic trails.
- *  • No per-frame Math.random() inside the hot loop.
+ * Algorithm: one "drop" per screen column.  Each frame we draw a
+ * semi-transparent black rectangle over the entire canvas so old
+ * characters fade into a green trail.  Then we draw a bright
+ * white-green character at each drop's current Y.  The drop row
+ * increments by 1 every frame, giving a smooth constant-speed fall.
+ *
+ * Drops spawn at random Y positions across the whole screen so the
+ * rain is dense and visible immediately — nothing starts off-screen.
  */
 export class MatrixRain {
   private active = false;
-  private drops: { col: number; row: number }[] = [];
-  private poolSize = 0;
+  /** Row position (can be fractional) for every column */
+  private drops: number[] = [];
+  /** Pre-computed character for each column so it doesn't flicker */
+  private columnChars: string[] = [];
   private readonly chars =
     'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾉﾀｽﾁﾄﾈﾊﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙ0123456789ABCDEF';
-  private readonly fontSize = 12; // smaller = denser grid
+  private readonly fontSize = 13;
 
-  start(columns: number, rows: number): void {
+  start(w: number, h: number): void {
     this.active = true;
+    const cols = Math.ceil(w / this.fontSize);
+    const rows = Math.ceil(h / this.fontSize);
+    this.drops = new Array(cols);
+    this.columnChars = new Array(cols);
 
-    // Density: 1.5 drops per column on average
-    this.poolSize = Math.floor(columns * 1.5);
-    this.drops = new Array(this.poolSize);
-
-    for (let i = 0; i < this.poolSize; i++) {
-      const col = i % columns;
-      // Stagger start positions well above the screen so rain is already
-      // in full swing when the screensaver appears.
-      const row = -(Math.random() * rows * 1.5 + 10);
-      this.drops[i] = { col, row };
+    for (let i = 0; i < cols; i++) {
+      // Start at a random row so the screen is full immediately.
+      this.drops[i] = Math.random() * rows;
+      // Pick one character per column; it will change on respawn.
+      this.columnChars[i] = this.chars[Math.floor(Math.random() * this.chars.length)];
     }
   }
 
@@ -42,40 +47,32 @@ export class MatrixRain {
     if (!this.active) return;
 
     const fs = this.fontSize;
+    const cols = this.drops.length;
     const charLen = this.chars.length;
 
-    // 1. Fade previous frame slightly — creates the green trail.
-    //    0.06 alpha is enough for a long tail without heavy ghosting.
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+    // 1. Fade previous frame — creates the green tail.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
     ctx.fillRect(0, 0, w, h);
 
     ctx.font = `${fs}px monospace`;
     ctx.textBaseline = 'top';
 
-    // 2. Advance and draw every drop.
-    for (let i = 0; i < this.poolSize; i++) {
-      const drop = this.drops[i];
-      drop.row += 1; // exactly one row per frame
+    // 2. Advance and draw every column's drop.
+    for (let i = 0; i < cols; i++) {
+      this.drops[i] += 1;
 
-      const x = drop.col * fs;
-      const y = drop.row * fs;
+      const y = this.drops[i] * fs;
 
-      // Draw the bright head if visible.
-      if (y >= 0 && y < h) {
+      // Draw the bright head.
+      if (y < h) {
         ctx.fillStyle = '#e6ffe6';
-        ctx.shadowColor = '#33ff33';
-        ctx.shadowBlur = 4;
-        ctx.fillText(
-          this.chars[(i + drop.row) % charLen], // deterministic but varied
-          x,
-          y
-        );
-        ctx.shadowBlur = 0;
+        ctx.fillText(this.columnChars[i], i * fs, y);
       }
 
-      // Respawn once the head clears the bottom by a margin.
-      if (y > h + 40) {
-        drop.row = -(Math.random() * 60 + 10);
+      // Respawn once the head leaves the bottom.
+      if (y > h + fs * 2) {
+        this.drops[i] = 0;
+        this.columnChars[i] = this.chars[Math.floor(Math.random() * charLen)];
       }
     }
   }

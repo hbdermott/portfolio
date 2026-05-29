@@ -50,6 +50,10 @@ export class CanvasTerminal {
   private readonly NOISE_STRENGTH      = 1;
   private readonly FLICKER_STRENGTH    = 0.3;
 
+  // Performance: only apply chromatic aberration every N frames
+  private chromaticFrameCounter = 0;
+  private readonly CHROMATIC_FRAME_SKIP = 2; // run every 3rd frame
+
   private charWidth = 9.6;
   private maxVisibleLines = 0;
   private scrollOffset = 0;
@@ -126,8 +130,7 @@ export class CanvasTerminal {
   /** Start Matrix Rain screensaver immediately. */
   startMatrixRain(): void {
     this.mode = 'matrix';
-    // fontSize 12 → 85 columns, 64 rows  (1024/12, 768/12)
-    this.matrixRain.start(85, 64);
+    this.matrixRain.start(this.width, this.height);
     this.dirty = true;
   }
 
@@ -219,7 +222,11 @@ export class CanvasTerminal {
       this.applyVignette(ctx, w, h);
       this.applyScanlines(ctx, w, h);
       this.applyApertureGrille(ctx, w, h);
-      this.applyChromaticAbberation(ctx, w, h);
+      // Chromatic aberration is expensive; skip frames to save ~67% cost.
+      if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+        this.chromaticFrameCounter = 0;
+        this.applyChromaticAbberation(ctx, w, h);
+      }
       this.applyNoise(ctx, w, h, time);
       this.applyFlicker(ctx, w, h, time);
     }
@@ -276,20 +283,13 @@ export class CanvasTerminal {
     const buf = this.inputBuffer;
     const len = buf.length;
 
+    // Draw every character normally.
     for (let i = 0; i < len; i++) {
       const charX = inputX + i * this.charWidth;
-      const hasCursor = this.cursorVisible && i === len - 1;
-
-      if (hasCursor) {
-        ctx.fillStyle = this.textColor;
-        ctx.fillRect(charX, y, this.charWidth, this.lineHeight);
-        ctx.fillStyle = this.bgColor;
-        ctx.fillText(buf[i], charX, y);
-      } else {
-        this.drawTextWithGlow(ctx, buf[i], charX, y, this.textColor);
-      }
+      this.drawTextWithGlow(ctx, buf[i], charX, y, this.textColor);
     }
 
+    // Single cursor block right after the last character (or at the start if empty).
     if (this.cursorVisible) {
       const cursorX = inputX + len * this.charWidth;
       ctx.fillStyle = this.textColor;
