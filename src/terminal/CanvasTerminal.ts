@@ -25,12 +25,12 @@ export class CanvasTerminal {
   private booting = true;
   private dirty = true;
 
-  // Layout constants - sized to fit the 3D monitor screen
-  private readonly width = 320*3;
-  private readonly height = 240*3;
-  private readonly fontSize = 7;
-  private readonly lineHeight = 9;
-  private readonly padding = 10;
+  // Layout constants — high resolution for crisp projection-mapped text
+  private readonly width = 1024;
+  private readonly height = 768;
+  private readonly fontSize = 16;
+  private readonly lineHeight = 20;
+  private readonly padding = 24;
   private readonly textColor = '#33ff33';
   private readonly dimColor = '#1a8a1a';
   private readonly errorColor = '#ff3333';
@@ -50,6 +50,7 @@ export class CanvasTerminal {
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('Failed to get 2D context');
     this.ctx = ctx;
+    
 
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.minFilter = THREE.LinearFilter;

@@ -14,6 +14,15 @@ export class GLTFScene {
 
   private animationId: number | null = null;
 
+  // ─── Terminal projection-mapping config ───
+  // The terminal canvas is planar-projected onto the glass mesh.
+  // FLIP_V: true to flip vertically if text appears upside-down.
+  // FLIP_U: true to flip horizontally if text appears mirrored.
+  // SWAP_AXES: true if the screen surface is rotated 90° in the model.
+  private readonly PROJ_FLIP_V = false;
+  private readonly PROJ_FLIP_U = false;
+  private readonly PROJ_SWAP_AXES = false;
+
   constructor(container: HTMLElement, terminal: CanvasTerminal) {
     this.terminal = terminal;
     this.clock = new THREE.Clock();
@@ -205,12 +214,14 @@ export class GLTFScene {
   }
 
   private applyTerminalTexture(mesh: THREE.Mesh): void {
+    // 1. Compute planar-projection UVs so the terminal maps 1:1 onto the
+    //    screen surface, preserving aspect ratio (letterboxed if needed).
+    this.projectionMapUVs(mesh);
+
+    // 2. Apply texture with GLTF top-left origin
     const texture = this.terminal.getTexture();
     texture.colorSpace = THREE.SRGBColorSpace;
-
-    // GLTF uses top-left UV origin; Three.js defaults to bottom-left.
-    // flipY=false aligns the texture so text appears right-side up.
-    texture.flipY = false;
+    texture.flipY = false; // top-left origin = upright text
     texture.needsUpdate = true;
 
     const material = new THREE.MeshStandardMaterial({
@@ -224,7 +235,103 @@ export class GLTFScene {
     });
 
     mesh.material = material;
-    console.log('Terminal texture applied to:', mesh.name);
+    console.log('Terminal texture projection-mapped to:', mesh.name);
+  }
+
+  /**
+   * Replaces the mesh UVs with planar-projection coordinates derived from
+   * the mesh vertex positions. The two largest bounding-box dimensions
+   * define the screen surface (width/height); the smallest is the normal.
+   * The terminal canvas aspect ratio is preserved via letterboxing.
+   */
+  private projectionMapUVs(mesh: THREE.Mesh): void {
+    const geometry = mesh.geometry.clone();
+    const positions = geometry.attributes.position;
+    const vertex = new THREE.Vector3();
+
+    // Compute local-space bounding box
+    const localBox = new THREE.Box3();
+    for (let i = 0; i < positions.count; i++) {
+      vertex.fromBufferAttribute(positions, i);
+      localBox.expandByPoint(vertex);
+    }
+
+    const localSize = localBox.getSize(new THREE.Vector3());
+
+    // Identify the two largest dimensions (screen surface) and smallest (normal)
+    const dims = [
+      { axis: 'x', size: localSize.x, idx: 0 },
+      { axis: 'y', size: localSize.y, idx: 1 },
+      { axis: 'z', size: localSize.z, idx: 2 },
+    ].sort((a, b) => b.size - a.size);
+
+    const uDim = this.PROJ_SWAP_AXES ? dims[1] : dims[0];
+    const vDim = this.PROJ_SWAP_AXES ? dims[0] : dims[1];
+
+    console.log('Projection mapping axes:', {
+      uAxis: uDim.axis,
+      vAxis: vDim.axis,
+      normal: dims[2].axis,
+      screenWidth: uDim.size.toFixed(4),
+      screenHeight: vDim.size.toFixed(4),
+    });
+
+    // Aspect ratios
+    const terminalCanvas = this.terminal.getCanvas();
+    const terminalAspect = terminalCanvas.width / terminalCanvas.height;
+    const screenAspect = uDim.size / vDim.size;
+
+    // Letterbox so terminal fits inside the screen surface without stretching
+    let uScale: number, vScale: number, uOffset: number, vOffset: number;
+
+    if (screenAspect > terminalAspect) {
+      // Screen is wider → fill height, bars on left/right
+      vScale = 1.0;
+      uScale = terminalAspect / screenAspect;
+      vOffset = 0.0;
+      uOffset = (1.0 - uScale) / 2.0;
+    } else {
+      // Screen is taller → fill width, bars on top/bottom
+      uScale = 1.0;
+      vScale = screenAspect / terminalAspect;
+      uOffset = 0.0;
+      vOffset = (1.0 - vScale) / 2.0;
+    }
+
+    // Generate planar UVs
+    const newUvs = new Float32Array(positions.count * 2);
+
+    for (let i = 0; i < positions.count; i++) {
+      vertex.fromBufferAttribute(positions, i);
+
+      const rawU =
+        (vertex.getComponent(uDim.idx) - localBox.min.getComponent(uDim.idx)) /
+        uDim.size;
+      const rawV =
+        (vertex.getComponent(vDim.idx) - localBox.min.getComponent(vDim.idx)) /
+        vDim.size;
+
+      let u = rawU * uScale + uOffset;
+      let v = rawV * vScale + vOffset;
+
+      if (this.PROJ_FLIP_U) u = 1.0 - u;
+      if (this.PROJ_FLIP_V) v = 1.0 - v;
+
+      newUvs[i * 2] = u;
+      newUvs[i * 2 + 1] = v;
+    }
+
+    geometry.setAttribute('uv', new THREE.BufferAttribute(newUvs, 2));
+    mesh.geometry = geometry;
+
+    console.log('Projection UV mapping:', {
+      terminalAspect: terminalAspect.toFixed(3),
+      screenAspect: screenAspect.toFixed(3),
+      uScale: uScale.toFixed(3),
+      vScale: vScale.toFixed(3),
+      uOffset: uOffset.toFixed(3),
+      vOffset: vOffset.toFixed(3),
+    });
   }
 
   private handleResize(): void {
