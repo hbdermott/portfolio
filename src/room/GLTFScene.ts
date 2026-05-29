@@ -134,45 +134,21 @@ export class GLTFScene {
         const model = gltf.scene;
         this.scene.add(model);
 
-        console.log('GLTF model loaded successfully');
-        console.log('Model children count:', model.children.length);
-
-        // Compute bounding box to understand model scale
+        // Compute bounding box and auto-scale
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
-        console.log('Model bounding box:');
-        console.log('  Size:', size.x, size.y, size.z);
-        console.log('  Center:', center.x, center.y, center.z);
-        console.log('  Min:', box.min.x, box.min.y, box.min.z);
-        console.log('  Max:', box.max.x, box.max.y, box.max.z);
-
-        // Auto-scale to fit view
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 1.0;
-        const scale = targetSize / maxDim;
+        const scale = 1.0 / maxDim;
         model.scale.set(scale, scale, scale);
-
-        // Center the model
         model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
 
-        console.log('Applied scale:', scale);
-        console.log('Applied position:', model.position.x, model.position.y, model.position.z);
-
-        // Adjust camera to look at model
         this.controls.target.set(0, size.y * scale * 0.5, 0);
         this.controls.update();
 
-        // Find the monitor glass/screen mesh
         this.findMonitorScreen(model);
-
       },
-      (progress) => {
-        if (progress.total > 0) {
-          const pct = (progress.loaded / progress.total) * 100;
-          console.log('Loading model:', pct.toFixed(1), '%');
-        }
-      },
+      undefined,
       (error) => {
         console.error('Error loading GLTF model:', error);
       }
@@ -181,22 +157,12 @@ export class GLTFScene {
 
   private findMonitorScreen(model: THREE.Group): void {
     let foundScreen = false;
+    const names = ['glass', 'screen', 'monitor', 'display', 'object_7', 'object_1'];
 
     model.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
+      if (child instanceof THREE.Mesh && !foundScreen) {
         const name = child.name.toLowerCase();
-        console.log('Mesh found:', child.name);
-
-        // Look for monitor screen/glass mesh
-        if (!foundScreen && (
-          name.includes('glass') ||
-          name.includes('screen') ||
-          name.includes('monitor') ||
-          name.includes('display') ||
-          name.includes('object_7') ||  // often the screen mesh
-          name.includes('object_1')
-        )) {
-          console.log('>> Selected as monitor screen:', child.name);
+        if (names.some((n) => name.includes(n))) {
           this.monitorScreenMesh = child;
           this.applyTerminalTexture(child);
           foundScreen = true;
@@ -205,7 +171,7 @@ export class GLTFScene {
     });
 
     if (!foundScreen) {
-      console.warn('No monitor screen mesh found by name. Applying to first mesh.');
+      console.warn('No monitor screen mesh found; applying texture to first mesh.');
       model.traverse((child) => {
         if (child instanceof THREE.Mesh && !this.monitorScreenMesh) {
           this.monitorScreenMesh = child;
@@ -270,14 +236,6 @@ export class GLTFScene {
     const uDim = this.PROJ_SWAP_AXES ? dims[1] : dims[0];
     const vDim = this.PROJ_SWAP_AXES ? dims[0] : dims[1];
 
-    console.log('Projection mapping axes:', {
-      uAxis: uDim.axis,
-      vAxis: vDim.axis,
-      normal: dims[2].axis,
-      screenWidth: uDim.size.toFixed(4),
-      screenHeight: vDim.size.toFixed(4),
-    });
-
     // Aspect ratios
     const terminalCanvas = this.terminal.getCanvas();
     const terminalAspect = terminalCanvas.width / terminalCanvas.height;
@@ -332,16 +290,6 @@ export class GLTFScene {
 
     geometry.setAttribute('uv', new THREE.BufferAttribute(newUvs, 2));
     mesh.geometry = geometry;
-
-    console.log('Projection UV mapping:', {
-      terminalAspect: terminalAspect.toFixed(3),
-      screenAspect: screenAspect.toFixed(3),
-      uScale: uScale.toFixed(3),
-      vScale: vScale.toFixed(3),
-      uOffset: uOffset.toFixed(3),
-      vOffset: vOffset.toFixed(3),
-      bezel: bezel.toFixed(3),
-    });
   }
 
   private handleResize(): void {

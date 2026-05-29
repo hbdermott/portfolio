@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { CommandParser } from './CommandParser';
+import { KeyboardSound } from '../audio/KeyboardSound';
 
 interface TerminalLine {
   text: string;
@@ -47,6 +48,7 @@ export class CanvasTerminal {
   private charWidth = 9.6; // approximate, measured later
   private maxVisibleLines = 0;
   private scrollOffset = 0;
+  private keyboardSound = new KeyboardSound('/keyboard.mp3');
 
   constructor(commandParser: CommandParser) {
     this.commandParser = commandParser;
@@ -72,6 +74,7 @@ export class CanvasTerminal {
 
     this.setupKeyboard();
     this.runBootSequence();
+    this.keyboardSound.load(); // fire-and-forget; audio begins once decoded
   }
 
   getTexture(): THREE.CanvasTexture {
@@ -127,7 +130,6 @@ export class CanvasTerminal {
   }
 
   private renderContent(ctx: CanvasRenderingContext2D): void {
-    // Calculate visible line range
     const totalLines = this.lines.length + 1; // +1 for input line
     let startLine = Math.max(0, totalLines - this.maxVisibleLines);
     if (this.scrollOffset > 0) {
@@ -141,62 +143,59 @@ export class CanvasTerminal {
 
     // Draw output lines
     for (let i = startLine; i < this.lines.length && i < startLine + this.maxVisibleLines; i++) {
-      const line = this.lines[i];
-      ctx.fillStyle = this.getColorForType(line.type);
-      // Apply phosphor glow effect
-      ctx.shadowColor = ctx.fillStyle;
-      ctx.shadowBlur = 10;
-      ctx.fillText(line.text, this.padding, y);
-      ctx.shadowBlur = 0;
+      this.drawTextWithGlow(ctx, this.lines[i].text, this.padding, y, this.getColorForType(this.lines[i].type));
       y += this.lineHeight;
     }
 
     // Draw input line with block cursor
     if (!this.booting && this.lines.length - startLine < this.maxVisibleLines) {
       const promptWidth = this.ctx.measureText(this.promptText + ' ').width;
+      this.drawTextWithGlow(ctx, this.promptText + ' ', this.padding, y, this.textColor);
 
-      // Draw prompt
-      ctx.fillStyle = this.textColor;
-      ctx.shadowColor = this.textColor;
-      ctx.shadowBlur = 10;
-      ctx.fillText(this.promptText + ' ', this.padding, y);
-      ctx.shadowBlur = 0;
-
-      // Draw input text
       const inputX = this.padding + promptWidth;
+      this.renderInputLine(ctx, inputX, y);
+    }
+  }
 
-      if (this.cursorVisible && this.inputBuffer.length === 0) {
-        // Empty line with cursor - draw filled block
+  private drawTextWithGlow(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    color: string
+  ): void {
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.fillText(text, x, y);
+    ctx.shadowBlur = 0;
+  }
+
+  private renderInputLine(ctx: CanvasRenderingContext2D, inputX: number, y: number): void {
+    const buf = this.inputBuffer;
+    const len = buf.length;
+
+    // Draw characters
+    for (let i = 0; i < len; i++) {
+      const charX = inputX + i * this.charWidth;
+      const hasCursor = this.cursorVisible && i === len - 1;
+
+      if (hasCursor) {
+        // Invert last char when cursor is on it
         ctx.fillStyle = this.textColor;
-        ctx.fillRect(inputX, y, this.charWidth, this.lineHeight);
+        ctx.fillRect(charX, y, this.charWidth, this.lineHeight);
+        ctx.fillStyle = this.bgColor;
+        ctx.fillText(buf[i], charX, y);
       } else {
-        // Draw text with cursor block
-        for (let i = 0; i < this.inputBuffer.length; i++) {
-          const char = this.inputBuffer[i];
-          const charX = inputX + i * this.charWidth;
-
-          if (this.cursorVisible && i === this.inputBuffer.length - 1) {
-            // Last char with cursor
-            ctx.fillStyle = this.textColor;
-            ctx.fillRect(charX, y, this.charWidth, this.lineHeight);
-            ctx.fillStyle = this.bgColor;
-            ctx.fillText(char, charX, y);
-          } else {
-            ctx.fillStyle = this.textColor;
-            ctx.shadowColor = this.textColor;
-            ctx.shadowBlur = 10;
-            ctx.fillText(char, charX, y);
-            ctx.shadowBlur = 0;
-          }
-        }
-
-        // Cursor at end of text (after last char)
-        if (this.cursorVisible) {
-          const cursorX = inputX + this.inputBuffer.length * this.charWidth;
-          ctx.fillStyle = this.textColor;
-          ctx.fillRect(cursorX, y, this.charWidth, this.lineHeight);
-        }
+        this.drawTextWithGlow(ctx, buf[i], charX, y, this.textColor);
       }
+    }
+
+    // Cursor at end of line
+    if (this.cursorVisible) {
+      const cursorX = inputX + len * this.charWidth;
+      ctx.fillStyle = this.textColor;
+      ctx.fillRect(cursorX, y, this.charWidth, this.lineHeight);
     }
   }
 
@@ -377,6 +376,7 @@ export class CanvasTerminal {
         // Printable character
         this.inputBuffer += e.key;
         this.dirty = true;
+        this.keyboardSound.play();
       }
     });
   }
