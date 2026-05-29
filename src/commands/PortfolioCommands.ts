@@ -137,7 +137,7 @@ export class PortfolioCommands {
 
     this.commands.set('snake', () => {
       this.terminal?.startSnake();
-      return { lines: ['Launching SNAKE... Use arrow keys or WASD. Any key to exit.'] };
+      return { lines: ['Launching SNAKE... Use arrow keys or WASD. Ctrl+C to quit.'] };
     });
   }
 }

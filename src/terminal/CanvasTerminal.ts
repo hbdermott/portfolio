@@ -116,6 +116,7 @@ export class CanvasTerminal {
   /** Inject a command as if the user typed it. */
   injectCommand(cmd: string): void {
     if (this.mode !== 'terminal') return;
+    this.lastActivity = performance.now();
     this.inputBuffer = cmd;
     this.dirty = true;
     this.executeCommand();
