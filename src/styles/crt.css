@@ -1,3 +1,6 @@
+/* ============================================================
+   CRT OVERLAY - Scanlines + aperture grille + noise
+   ============================================================ */
 #crt-overlay {
   position: absolute;
   top: 0;
@@ -6,21 +9,22 @@
   height: 100%;
   pointer-events: none;
   z-index: 100;
-  /* Horizontal scanlines */
+  border-radius: inherit;
+  /* Multi-layer screen texture */
   background:
+    /* Horizontal scanlines */
     repeating-linear-gradient(
       0deg,
-      rgba(0, 0, 0, 0.2) 0px,
-      rgba(0, 0, 0, 0.2) 1px,
+      rgba(0, 0, 0, 0.25) 0px,
+      rgba(0, 0, 0, 0.25) 1px,
       transparent 1px,
-      transparent 3px
+      transparent 4px
     );
-  border-radius: inherit;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
-/* Subtle vertical aperture grille lines */
-#crt-overlay::after {
+/* RGB aperture grille / shadow mask */
+#crt-overlay::before {
   content: '';
   position: absolute;
   top: 0;
@@ -28,17 +32,39 @@
   width: 100%;
   height: 100%;
   background:
+    /* Vertical RGB stripes (aperture grille) */
     repeating-linear-gradient(
       90deg,
-      rgba(0, 0, 0, 0.03) 0px,
-      rgba(0, 0, 0, 0.03) 1px,
-      transparent 1px,
-      transparent 4px
+      rgba(255, 0, 0, 0.04) 0px,
+      rgba(255, 0, 0, 0.04) 1px,
+      rgba(0, 255, 0, 0.04) 1px,
+      rgba(0, 255, 0, 0.04) 2px,
+      rgba(0, 0, 255, 0.04) 2px,
+      rgba(0, 0, 255, 0.04) 3px,
+      transparent 3px,
+      transparent 6px
     );
   pointer-events: none;
   border-radius: inherit;
 }
 
+/* Subtle noise/grain overlay */
+#crt-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ============================================================
+   CRT SHADER CANVAS
+   ============================================================ */
 #crt-shader-canvas {
   position: absolute;
   top: 0;
@@ -50,6 +76,9 @@
   border-radius: inherit;
 }
 
+/* ============================================================
+   ASCII ART BACKGROUND
+   ============================================================ */
 #ascii-background {
   position: absolute;
   top: 0;
@@ -60,7 +89,7 @@
   padding: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.06;
+  opacity: 0.05;
   color: #33ff33;
   font-size: 8px;
   line-height: 8px;
@@ -71,40 +100,88 @@
   text-shadow: 0 0 2px #33ff33;
 }
 
+/* ============================================================
+   FLICKER ANIMATIONS
+   ============================================================ */
 .crt-flicker {
   animation: flicker 0.15s ease-in-out;
 }
 
 @keyframes flicker {
   0% { opacity: 1; }
-  25% { opacity: 0.88; }
+  25% { opacity: 0.85; }
   50% { opacity: 1; }
-  75% { opacity: 0.94; }
+  75% { opacity: 0.92; }
   100% { opacity: 1; }
 }
 
-/* Occasional screen-wide flicker */
-#screen-container {
-  animation: screen-flicker 10s infinite;
-  /* Edge darkening + phosphor glow */
+/* Slow ambient flicker on screen */
+#screen-glass {
+  animation: screen-flicker 12s infinite;
   box-shadow:
-    inset 0 0 50px rgba(0,0,0,0.9),
-    inset 0 0 100px rgba(0,0,0,0.6),
-    0 0 60px rgba(51, 255, 51, 0.02);
+    inset 0 0 60px rgba(0,0,0,0.9),
+    inset 0 0 120px rgba(0,0,0,0.5),
+    /* Very subtle green phosphor glow */
+    0 0 80px rgba(51, 255, 51, 0.015);
 }
 
 @keyframes screen-flicker {
-  0%, 96%, 100% { opacity: 1; }
-  97% { opacity: 0.97; }
-  98% { opacity: 0.99; }
-  99% { opacity: 0.98; }
+  0%, 97%, 100% { opacity: 1; }
+  98% { opacity: 0.97; }
+  99% { opacity: 0.99; }
 }
 
-/* Phosphor dot pitch simulation on terminal text */
+/* ============================================================
+   TERMINAL PHOSPHOR EFFECTS
+   ============================================================ */
 #terminal {
+  /* Multi-layer phosphor glow on text */
   text-shadow:
-    0.5px 0 0 rgba(255, 0, 0, 0.1),
-    -0.5px 0 0 rgba(0, 255, 0, 0.1),
-    0 0.5px 0 rgba(0, 0, 255, 0.1),
-    0 0 4px rgba(51, 255, 51, 0.6);
+    /* Tight core glow */
+    0 0 2px rgba(51, 255, 51, 0.8),
+    /* Mid blur */
+    0 0 6px rgba(51, 255, 51, 0.4),
+    /* Wide bloom */
+    0 0 12px rgba(51, 255, 51, 0.15);
+}
+
+/* Cursor uses block style via caret */
+.terminal-input {
+  /* Make caret thick like a block */
+  caret-color: #33ff33;
+}
+
+/* Selection glows like phosphor persistence */
+.terminal-input::selection {
+  background: rgba(51, 255, 51, 0.3);
+  color: #ccffcc;
+  text-shadow: 0 0 4px #33ff33;
+}
+
+/* Power-on warm-up state */
+.crt-warmup {
+  animation: warmup 2s ease-out forwards;
+}
+
+@keyframes warmup {
+  0% {
+    filter: brightness(0.1) contrast(1.5);
+    opacity: 0.3;
+  }
+  30% {
+    filter: brightness(0.5) contrast(1.3);
+    opacity: 0.6;
+  }
+  60% {
+    filter: brightness(0.9) contrast(1.1);
+    opacity: 0.9;
+  }
+  80% {
+    filter: brightness(1.1) contrast(1);
+    opacity: 1;
+  }
+  100% {
+    filter: brightness(1) contrast(1);
+    opacity: 1;
+  }
 }

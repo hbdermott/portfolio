@@ -31,7 +31,7 @@ function main(): void {
   const asciiRenderer = new ASCIIRenderer(sceneManager, 'ascii-background');
   asciiRenderer.start();
 
-  const matrixRain = new MatrixRain('screen-container');
+  const matrixRain = new MatrixRain('screen-glass');
   const glitchEffect = new GlitchEffect('crt-overlay');
 
   const terminal = new Terminal('terminal', commandParser);
