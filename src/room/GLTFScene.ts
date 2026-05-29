@@ -31,7 +31,7 @@ export class GLTFScene {
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1a1a);
+    this.scene.background = new THREE.Color(0x000000);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
