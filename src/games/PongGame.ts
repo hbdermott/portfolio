@@ -186,10 +186,10 @@ export class PongGame {
     ctx.fillStyle = '#33ff33';
     ctx.fillText(`${this.score[0]} : ${this.score[1]}`, 250, 100);
 
-    // Hint
+    // Hint — directly under the score
     ctx.font = '12px monospace';
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('Move mouse to play    Ctrl+C to quit', 250, 480);
+    ctx.fillText('Move mouse to play    Ctrl+C to quit', 250, 128);
 
     ctx.restore();
   }
