@@ -112,14 +112,14 @@ export class PortfolioCommands {
 
       // --github → open GitHub profile in new tab
       if (args.includes('--github')) {
-        window.open(`https://${contactInfo.github}`, '_blank');
-        return { lines: [`Opening https://${contactInfo.github}...`] };
+        window.open(`${contactInfo.github}`, '_blank');
+        return { lines: [`Opening ${contactInfo.github}...`] };
       }
 
       // --linkedin → open LinkedIn profile in new tab
       if (args.includes('--linkedin')) {
-        window.open(`https://${contactInfo.linkedin}`, '_blank');
-        return { lines: [`Opening https://${contactInfo.linkedin}...`] };
+        window.open(`${contactInfo.linkedin}`, '_blank');
+        return { lines: [`Opening ${contactInfo.linkedin}...`] };
       }
 
       if (args.includes('--copy-email') || args.includes('-c')) {

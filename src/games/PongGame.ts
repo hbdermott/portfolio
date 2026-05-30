@@ -189,7 +189,7 @@ export class PongGame {
     // Hint — directly under the score
     ctx.font = '12px monospace';
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('Move mouse to play    Ctrl+C to quit', 250, 128);
+    ctx.fillText('Move mouse to play    Ctrl+C to quit', 240, 156);
 
     ctx.restore();
   }
