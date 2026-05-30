@@ -587,8 +587,8 @@ export class CanvasTerminal {
     // Tap anywhere on the 3D canvas to summon mobile keyboard
     const container = document.getElementById('canvas-container');
     if (container) {
-      container.addEventListener('touchstart', () => this.focusInput(), { passive: true });
-      container.addEventListener('click', () => this.focusInput());
+      // container.addEventListener('touchstart', () => this.focusInput(), { passive: true });
+      // container.addEventListener('click', () => this.focusInput());
     }
   }
 
