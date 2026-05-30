@@ -41,7 +41,7 @@ function main(): void {
     {
       name: 'Effects & Games',
       color: '#ffaa00',
-      commands: ['matrix', 'glitch', 'snake'],
+      commands: ['matrix', 'glitch', 'snake', 'pong'],
     },
     {
       name: 'Linux',

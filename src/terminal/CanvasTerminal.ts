@@ -4,13 +4,14 @@ import { KeyboardSound } from '../audio/KeyboardSound';
 import { MatrixRain } from '../animations/MatrixRain';
 import { GlitchEffect } from '../animations/GlitchEffect';
 import { SnakeGame } from '../games/SnakeGame';
+import { PongGame } from '../games/PongGame';
 
 interface TerminalLine {
   text: string;
   type: 'output' | 'error' | 'dim' | 'prompt';
 }
 
-type TerminalMode = 'terminal' | 'matrix' | 'snake';
+type TerminalMode = 'terminal' | 'matrix' | 'snake' | 'pong';
 
 export class CanvasTerminal {
   private canvas: HTMLCanvasElement;
@@ -51,7 +52,7 @@ export class CanvasTerminal {
   private readonly FLICKER_STRENGTH    = 0.3;
 
   // Global kill-switch for chromatic aberration (major perf cost)
-  private enableChromaticGlobal = true;
+  private enableChromaticGlobal = false;
 
   // Performance: only apply chromatic aberration every N frames
   private chromaticFrameCounter = 0;
@@ -72,6 +73,7 @@ export class CanvasTerminal {
   private matrixRain = new MatrixRain();
   private glitch = new GlitchEffect();
   private snakeGame = new SnakeGame(() => this.exitSnake());
+  private pongGame = new PongGame();
   private lastActivity = 0;
   private readonly IDLE_MS = 30000; // 30s screensaver timeout
 
@@ -79,9 +81,9 @@ export class CanvasTerminal {
   private shutdownMode = false;
   private shutdownPending = false;
   private shutdownTime = 0;
-  private readonly SHUTDOWN_SHOW_MS = 600;
-  private readonly SHUTDOWN_CLOSE_MS = 300;
-  private readonly SHUTDOWN_TOTAL_MS = 4500;
+  private readonly SHUTDOWN_SHOW_MS = 750;
+  private readonly SHUTDOWN_CLOSE_MS = 125;
+  private readonly SHUTDOWN_TOTAL_MS = 2500;
 
   constructor(commandParser: CommandParser, enableChromatic = true) {
     this.commandParser = commandParser;
@@ -139,6 +141,8 @@ export class CanvasTerminal {
       this.stopMatrixRain();
     } else if (this.mode === 'snake') {
       this.exitSnake();
+    } else if (this.mode === 'pong') {
+      this.exitPong();
     }
 
     this.inputBuffer = cmd;
@@ -186,6 +190,20 @@ export class CanvasTerminal {
     this.dirty = true;
   }
 
+  /** Launch Pong game. */
+  startPong(): void {
+    this.mode = 'pong';
+    this.pongGame.start();
+    this.dirty = true;
+  }
+
+  /** Exit Pong and return to terminal. */
+  private exitPong(): void {
+    this.pongGame.stop();
+    this.mode = 'terminal';
+    this.dirty = true;
+  }
+
   // ─── Main Loop ───
 
   update(time: number): void {
@@ -222,6 +240,12 @@ export class CanvasTerminal {
       this.dirty = true;
     }
 
+    // Pong game tick
+    if (this.mode === 'pong') {
+      this.pongGame.update(time);
+      this.dirty = true;
+    }
+
     // Matrix rain animates every frame
     if (this.mode === 'matrix') {
       this.dirty = true;
@@ -253,6 +277,8 @@ export class CanvasTerminal {
       this.matrixRain.render(ctx, w, h);
     } else if (this.mode === 'snake') {
       this.snakeGame.render(ctx, w, h);
+    } else if (this.mode === 'pong') {
+      this.pongGame.render(ctx, w, h);
     } else {
       // Terminal mode
       ctx.fillStyle = this.bgColor;
@@ -265,8 +291,8 @@ export class CanvasTerminal {
       this.renderGlitch(ctx, w, h);
     }
 
-    // CRT effects — snake gets minimal set to avoid visual distortion
-    if (this.mode === 'snake') {
+    // CRT effects — snake/pong get minimal set to avoid visual distortion
+    if (this.mode === 'snake' || this.mode === 'pong') {
       this.applyScanlines(ctx, w, h);
       this.applyFlicker(ctx, w, h, time);
     } else if (this.mode === 'matrix') {
@@ -501,6 +527,23 @@ export class CanvasTerminal {
         return;
       }
 
+      // Pong game input
+      if (this.mode === 'pong') {
+        this.lastActivity = performance.now();
+        // Ctrl+C quits pong
+        if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+          this.exitPong();
+          return;
+        }
+        this.pongGame.handleKey(e.key, true);
+        // Game-over screen: any key exits
+        if (this.pongGame.isGameOver()) {
+          this.exitPong();
+          return;
+        }
+        return;
+      }
+
       if (this.booting) return;
       this.lastActivity = performance.now();
 
@@ -537,6 +580,13 @@ export class CanvasTerminal {
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
         this.inputBuffer += e.key;
         this.dirty = true;
+      }
+    });
+
+    // Keyup for Pong paddle release
+    window.addEventListener('keyup', (e) => {
+      if (this.mode === 'pong') {
+        this.pongGame.handleKey(e.key, false);
       }
     });
   }

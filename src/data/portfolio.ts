@@ -14,68 +14,71 @@ export interface ExperienceEntry {
 
 export const aboutContent = [
   'Name: Hunter Dermott',
-  'Role: Software Engineer',
-  'Location: [Your Location]',
+  'Current Role: .NET Software Engineer',
+  'Location: Irvine CA',
   '',
-  'I build things with code. Passionate about creating interactive',
-  'experiences and solving complex problems with elegant solutions.',
+  'I like building things! Tinkerer at heart.',
+  'Always enjoy collaborating and working with others.',
   '',
-  'Interests: systems programming, graphics, retro computing,',
-  'open source, and building cool things on the web.',
+  'Hobbies: guitar, board games, retro video games,',
+  'and building cool things.',
 ];
 
 export const projects: Project[] = [
   {
     name: 'CRT Terminal Portfolio',
     description: 'Interactive portfolio site inside a simulated CRT monitor',
-    technologies: ['TypeScript', 'Three.js', 'WebGL', 'Vite'],
-    detail: 'A fully functional terminal portfolio with CRT shader effects, ASCII art background rendered with Three.js, and a lightweight Linux command emulator. Features real-time scanlines, barrel distortion, chromatic aberration, and phosphor glow.',
+    technologies: ['TypeScript', 'Three.js', 'WebGL', 'Vite', 'Fun :)'],
+    detail: 'A functional terminal portfolio taking place on a retro CRT monitor. Cool shaders, effects, and ideas!',
   },
   {
-    name: 'Project Alpha',
-    description: 'A cool project that solves real problems',
-    technologies: ['TypeScript', 'Node.js', 'PostgreSQL'],
-    detail: 'Detailed description of Project Alpha including challenges faced and solutions implemented. This project demonstrates backend architecture and database design skills.',
-  },
-  {
-    name: 'Project Beta',
-    description: 'Another awesome project with great features',
-    technologies: ['React', 'Python', 'Docker'],
-    detail: 'Detailed description of Project Beta. Showcases full-stack development capabilities and DevOps practices.',
-  },
+    name: 'Tale.ink',
+    description: 'A new way for authors to publish their work in a social environment',
+    technologies: ['JavaScript', 'React', 'Next.js', 'Firebase', 'Chakra'],
+    detail: 'A modern publishing platform enabling authors to share works, gather feedback, and iterate more quickly.',
+  }
 ];
 
 export const experience: ExperienceEntry[] = [
   {
-    company: 'Company Name',
+    company: 'Convergence .NET',
     role: 'Software Engineer',
-    dates: '2023 - Present',
+    dates: '2022 - Present',
     bullets: [
-      'Led development of core platform features serving 100k+ users',
-      'Architected scalable backend systems with 99.9% uptime',
-      'Mentored junior developers and established engineering best practices',
+      'Worked in a fast-paced, collaborative team building and maintaining enterprise solutions for ',
+      'ticketing sales, and operations across attractions, zoos, aquariums, and corporate experiences.',
+      'Developed scalable web apps, APIs, and backends using the Microsoft tech stack, delivering',
+      'reliable high-performance systems for many large clients.',
     ],
   },
   {
-    company: 'Previous Company',
-    role: 'Junior Developer',
-    dates: '2021 - 2023',
+    company: 'GDM Electronic & Medical, LLC',
+    role: 'Radio/GPS Technician',
+    dates: 'Summer 2019',
     bullets: [
-      'Built responsive frontend interfaces used by thousands of customers',
-      'Optimized database queries reducing load times by 40%',
-      'Contributed to open-source projects and internal tooling',
+      'Programmed, setup, and assembled Radio & GPS devices used by the National Guard.',
+      'Utilized scripting and fixed bugs to streamline processes'
+    ],
+  },
+  {
+    company: 'UCLA',
+    role: 'B.S. in Computer Science',
+    dates: '2017 - 2021',
+    bullets: [
     ],
   },
 ];
 
 export const skills = {
-  Languages: ['TypeScript', 'JavaScript', 'Python', 'Go', 'Rust'],
-  'Frameworks & Tools': ['Node.js', 'Three.js', 'Docker', 'Git', 'Linux'],
-  Other: ['PostgreSQL', 'Redis', 'AWS', 'WebGL', 'GraphQL'],
+  Languages: ['C#', 'C++', 'C', 'TS', 'JS', 'Python'],
+  Frontend: ['Blazor', 'Razor', 'React', 'Next.js', 'HTML', 'CSS'],
+  Backend: ['ASP.NET Core', '.NET Framework', 'Node', 'REST APIs'],
+  Databases: ['SQL Server', 'PostgreSQL'],
+  'Cloud & DevOps': ['Azure', 'GCP', 'Github', 'Linux'],
 };
 
 export const contactInfo = {
-  email: 'hunter@example.com',
-  github: 'github.com/hunterdermott',
-  linkedin: 'linkedin.com/in/hunterdermott',
+  email: 'hbdermott@gmail.com',
+  github: 'https://github.com/hbdermott',
+  linkedin: 'https://www.linkedin.com/in/hunter-dermott-67a134184',
 };

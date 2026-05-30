@@ -23,22 +23,24 @@ export class PortfolioCommands {
     this.commands.set('help', () => {
       return {
         lines: [
-          'Portfolio Commands:',
-          '  about       - About me',
-          '  projects    - View my projects',
-          '  experience  - Work experience',
-          '  skills      - Technical skills',
-          '  contact     - Contact information',
-          '  help        - Show this help message',
-          '  clear       - Clear terminal',
-          '  matrix      - Matrix rain effect',
-          '  glitch      - Glitch effect',
-          '',
-           'Linux Commands:',
-           '  ls, cd, pwd, cat, mkdir, touch, rm',
-           '  echo, whoami, date, uname, exit',
-          '',
-          'Tip: Use projects --detail <name> for more info',
+           'Portfolio Commands:',
+           '  about       - About me',
+           '  projects    - View my projects',
+           '  experience  - Work experience',
+           '  skills      - Technical skills',
+           '  contact     - Contact information',
+           '  help        - Show this help message',
+           '  clear       - Clear terminal',
+           '  matrix      - Matrix rain effect',
+           '  glitch      - Glitch effect',
+           '  snake       - Play Snake',
+           '  pong        - Play Pong',
+           '',
+            'Linux Commands:',
+            '  ls, cd, pwd, cat, mkdir, touch, rm',
+            '  echo, whoami, date, uname, exit, mail',
+           '',
+           'Tip: Use projects --detail <name> for more info',
         ]
       };
     });
@@ -102,6 +104,24 @@ export class PortfolioCommands {
     });
 
     this.commands.set('contact', (args) => {
+      // --mail → trigger mailto: (behaves like clicking a mailto link)
+      if (args.includes('--mail')) {
+        window.location.href = `mailto:${contactInfo.email}`;
+        return { lines: [`Opening mailto:${contactInfo.email}...`] };
+      }
+
+      // --github → open GitHub profile in new tab
+      if (args.includes('--github')) {
+        window.open(`https://${contactInfo.github}`, '_blank');
+        return { lines: [`Opening https://${contactInfo.github}...`] };
+      }
+
+      // --linkedin → open LinkedIn profile in new tab
+      if (args.includes('--linkedin')) {
+        window.open(`https://${contactInfo.linkedin}`, '_blank');
+        return { lines: [`Opening https://${contactInfo.linkedin}...`] };
+      }
+
       if (args.includes('--copy-email') || args.includes('-c')) {
         navigator.clipboard.writeText(contactInfo.email).then(() => {
           // Async - handled by return message
@@ -116,7 +136,11 @@ export class PortfolioCommands {
           `  GitHub: ${contactInfo.github}`,
           `  LinkedIn: ${contactInfo.linkedin}`,
           '',
-          'Use contact --copy-email to copy email to clipboard',
+          'Flags:',
+          '  --mail      Open mailto link',
+          '  --github    Open GitHub profile',
+          '  --linkedin  Open LinkedIn profile',
+          '  --copy-email  Copy email to clipboard',
         ]
       };
     });
@@ -138,6 +162,11 @@ export class PortfolioCommands {
     this.commands.set('snake', () => {
       this.terminal?.startSnake();
       return { lines: ['Launching SNAKE... Use arrow keys or WASD. Ctrl+C to quit.'] };
+    });
+
+    this.commands.set('pong', () => {
+      this.terminal?.startPong();
+      return { lines: ['Launching PONG... Up/Down or W/S to move. Ctrl+C to quit.'] };
     });
   }
 }
