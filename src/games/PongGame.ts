@@ -1,71 +1,52 @@
 /**
- * Pong game rendered on the terminal canvas.
+ * Pong — direct port of the provided reference implementation.
  *
- * Player (left) vs AI (right).
- * Predictive collision — we check where the ball *will* be next frame
- * and compute the exact Y intersection with the paddle plane.
- * Deflection angle depends on paddle hit offset (center = shallow,
- * edge = steep) and the incoming angle is rotated rather than replaced.
+ * Coordinate space: internal logic runs on a 500×500 virtual canvas
+ * with normalised coordinates (-1 … 1).  Rendering is scaled to the
+ * terminal’s 1024×768 texture via ctx.scale().
  *
- * Controls: Up/Down arrows or W/S.  Ctrl+C to quit.
+ * Controls: mouse Y anywhere on screen moves the left paddle.
+ *           Ctrl+C to quit.
  */
 export class PongGame {
   private active = false;
-  private gameOver = false;
 
-  // Canvas size (same as terminal texture)
-  private readonly W = 1024;
-  private readonly H = 768;
+  // ─── internal state (exact names from reference) ───
+  private paddles = [0, 0];          // normalised Y, 0 = centre
+  private ball = [0, 0, -0.016, 0]; // [x, y, vx, vy]
+  private score = [0, 0];
+  private cursor = 0;                // mouse Y normalised
+  private reactionSpeed = 6;
+  private reactionDistance = -0.5;
 
-  // Paddles
-  private readonly paddleW = 14;
-  private readonly paddleH = 100;
-  private readonly paddleInset = 40; // gap from left/right edge
-  private leftY = 0;
-  private rightY = 0;
+  private readonly VIRTUAL_W = 500;
+  private readonly VIRTUAL_H = 500;
 
-  // Ball
-  private ballX = 0;
-  private ballY = 0;
-  private ballVX = 0;
-  private ballVY = 0;
-  private readonly ballR = 6;
-  private readonly ballSpeedStart = 6.5;
-  private readonly ballSpeedMax = 13;
-
-  // Score
-  private leftScore = 0;
-  private rightScore = 0;
-  private readonly winScore = 5;
-
-  // AI
-  private aiSpeed = 5.5;
-  private aiReactionDist = -0.6; // fraction of screen width
-  private aiLag = 0; // frames of lag before AI reacts
-  private aiLagCounter = 0;
-
-  // Input
-  private upPressed = false;
-  private downPressed = false;
-
-  // Timing
-  private lastTick = 0;
-  private readonly tickRate = 16; // ~60 Hz game logic
+  // Mouse listener cleanup
+  private mouseHandler: ((e: MouseEvent) => void) | null = null;
 
   start(): void {
     this.active = true;
-    this.gameOver = false;
-    this.leftScore = 0;
-    this.rightScore = 0;
-    this.leftY = this.H / 2 - this.paddleH / 2;
-    this.rightY = this.H / 2 - this.paddleH / 2;
-    this.upPressed = false;
-    this.downPressed = false;
-    this.resetBall(1);
+    this.paddles = [0, 0];
+    this.ball = [0, 0, -0.016, 0];
+    this.score = [0, 0];
+    this.cursor = 0;
+    this.reactionSpeed = 6;
+    this.reactionDistance = -0.5;
+
+    this.mouseHandler = (e: MouseEvent) => {
+      // Map window Y to normalised -1 … 1
+      this.cursor = (e.clientY / window.innerHeight) * 2 - 1;
+    };
+    window.addEventListener('mousemove', this.mouseHandler);
   }
 
   stop(): void {
     this.active = false;
+    if (this.mouseHandler) {
+      window.removeEventListener('mousemove', this.mouseHandler);
+      this.mouseHandler = null;
+    }
   }
 
   isActive(): boolean {
@@ -73,217 +54,143 @@ export class PongGame {
   }
 
   isGameOver(): boolean {
-    return this.gameOver;
+    return Math.abs(this.ball[0]) >= 1;
   }
 
-  handleKey(key: string, pressed: boolean): void {
+  /** One game tick — runs once per frame (~60 Hz). */
+  tick(): void {
     if (!this.active) return;
-    if (['ArrowDown', 's', 'S'].includes(key)) this.downPressed = pressed;
-    if (['ArrowUp', 'w', 'W'].includes(key)) this.upPressed = pressed;
-  }
 
-  update(time: number): void {
-    if (!this.active || this.gameOver) return;
-    if (time - this.lastTick > this.tickRate) {
-      this.lastTick = time;
-      this.tick();
+    const b = this.ball;
+    const p = this.paddles;
+
+    // ─── scoring ───
+    if (Math.abs(b[0]) >= 1) {
+      this.score[b[0] < 0 ? 1 : 0]++;
+      b[0] = 0; b[1] = 0;
+      b[2] = b[0] < 0 ? -0.016 : 0.016; // reset with opposite direction
+      b[3] = 0;
+      this.reactionDistance = -0.5;
+      this.reactionSpeed = 6;
+      return;
     }
-  }
 
-  private tick(): void {
-    // ─── Player paddle ───
-    const paddleSpeed = 8;
-    if (this.upPressed) this.leftY -= paddleSpeed;
-    if (this.downPressed) this.leftY += paddleSpeed;
-    this.leftY = Math.max(0, Math.min(this.H - this.paddleH, this.leftY));
+    // ─── wall bounce (top / bottom) ───
+    if (Math.abs(b[1]) >= 1) {
+      b[3] = -b[3];
+    }
+
+    // ─── move ball ───
+    b[0] += b[2];
+    b[1] += b[3];
+
+    // ─── player paddle follows mouse ───
+    p[0] = this.cursor;
 
     // ─── AI paddle ───
-    // Only react once the ball has crossed the reaction-distance threshold.
-    const ballNormX = (this.ballX - this.W / 2) / (this.W / 2); // -1 … 1
-    if (ballNormX > this.aiReactionDist && this.ballVX > 0) {
-      this.aiLagCounter++;
-      if (this.aiLagCounter > this.aiLag) {
-        this.aiLagCounter = 0;
-        const target = this.ballY - this.paddleH / 2;
-        const diff = target - this.rightY;
-        if (Math.abs(diff) > 4) {
-          this.rightY += Math.sign(diff) * this.aiSpeed;
-        }
-      }
-    }
-    this.rightY = Math.max(0, Math.min(this.H - this.paddleH, this.rightY));
-
-    // ─── Move ball ───
-    this.ballX += this.ballVX;
-    this.ballY += this.ballVY;
-
-    // ─── Top / bottom wall bounce ───
-    if (this.ballY - this.ballR <= 0) {
-      this.ballY = this.ballR;
-      this.ballVY = Math.abs(this.ballVY);
-    } else if (this.ballY + this.ballR >= this.H) {
-      this.ballY = this.H - this.ballR;
-      this.ballVY = -Math.abs(this.ballVY);
-    }
-
-    // ─── Predictive paddle collision ───
-    const leftPlane = this.paddleInset + this.paddleW;  // right edge of left paddle
-    const rightPlane = this.W - this.paddleInset - this.paddleW; // left edge of right paddle
-
-    // Left paddle (player)
-    if (this.ballVX < 0) {
-      const nextX = this.ballX + this.ballVX;
-      if (this.ballX > leftPlane && nextX <= leftPlane + this.ballR) {
-        const t = (leftPlane + this.ballR - this.ballX) / this.ballVX; // 0 < t ≤ 1
-        const hitY = this.ballY + this.ballVY * t;
-        const paddleCenter = this.leftY + this.paddleH / 2;
-        if (Math.abs(paddleCenter - hitY) <= this.paddleH / 2 + this.ballR) {
-          this.deflect(hitY, paddleCenter, -1);
-        }
+    if (b[0] > this.reactionDistance && b[2] > 0) {
+      const halfH = 10 / 250; // paddle half-height in normalised space
+      const aiStep = this.reactionSpeed / 250;
+      if (b[1] > p[1] + halfH) {
+        p[1] += aiStep;
+      } else if (b[1] < p[1] - halfH) {
+        p[1] -= aiStep;
       }
     }
 
-    // Right paddle (AI)
-    if (this.ballVX > 0) {
-      const nextX = this.ballX + this.ballVX;
-      if (this.ballX < rightPlane && nextX >= rightPlane - this.ballR) {
-        const t = (rightPlane - this.ballR - this.ballX) / this.ballVX;
-        const hitY = this.ballY + this.ballVY * t;
-        const paddleCenter = this.rightY + this.paddleH / 2;
-        if (Math.abs(paddleCenter - hitY) <= this.paddleH / 2 + this.ballR) {
-          this.deflect(hitY, paddleCenter, 1);
-        }
+    // ─── clamp paddles ───
+    const limit = 210 / 250;
+    for (let i = 0; i < 2; i++) {
+      if (Math.abs(p[i]) > limit) {
+        p[i] = (p[i] / Math.abs(p[i])) * limit;
       }
     }
 
-    // ─── Scoring ───
-    if (this.ballX + this.ballR < 0) {
-      this.rightScore++;
-      if (this.rightScore >= this.winScore) {
-        this.gameOver = true;
-      } else {
-        this.resetBall(1);
-      }
-    } else if (this.ballX - this.ballR > this.W) {
-      this.leftScore++;
-      if (this.leftScore >= this.winScore) {
-        this.gameOver = true;
-      } else {
-        this.resetBall(-1);
-      }
+    // ─── paddle collision ───
+    const plane = 220 / 250; // paddle face in normalised space
+    const halfPaddle = 30 / 250; // 25px half-height + 5px ball radius
+
+    // left paddle
+    const hitLeft =
+      b[0] > -plane &&
+      b[0] + b[2] <= -plane &&
+      Math.abs(p[0] - b[1] - b[3] * (-plane - b[0]) / b[2]) <= halfPaddle;
+
+    // right paddle
+    const hitRight =
+      b[0] < plane &&
+      b[0] + b[2] >= plane &&
+      Math.abs(p[1] - b[1] - b[3] * (plane - b[0]) / b[2]) <= halfPaddle;
+
+    if (hitLeft || hitRight) {
+      const sign = b[0] < 0 ? 1 : -1;
+      const paddleIdx = b[0] < 0 ? 0 : 1;
+      const incoming = Math.atan(b[3] / -b[2]);
+
+      const alpha = sign * (
+        (7 / 16) * (incoming + Math.PI / 2)
+        + 0.004375 * Math.PI * (b[1] - p[paddleIdx]) * 500
+        + (27 / 64) * Math.PI
+        - incoming
+        + Math.PI * 3 / 8
+      );
+
+      const x = b[2] * Math.cos(alpha) - b[3] * Math.sin(alpha);
+      const y = b[2] * Math.sin(alpha) + b[3] * Math.cos(alpha);
+
+      b[2] = x * 1.02;
+      b[3] = y * 1.02;
+      this.reactionSpeed = Math.random() * 4.5 + 1.7;
+      this.reactionDistance = Math.random() * 0.7 - 1;
     }
   }
 
-  /**
-   * Deflect the ball using a rotation-based formula.
-   *
-   * 1. Compute the paddle-hit offset (how far from paddle center).
-   * 2. Turn that offset into an additional rotation angle.
-   * 3. Rotate the existing velocity vector by that angle.
-   * 4. Speed up by ~2% per rally.
-   */
-  private deflect(hitY: number, paddleCenter: number, direction: 1 | -1): void {
-    const offset = paddleCenter - hitY;           // positive = hit above center
-    const normalized = offset / (this.paddleH / 2); // -1 … 1
-
-    // Base rotation from paddle offset (max ±35°)
-    const offsetAngle = normalized * (Math.PI / 5.2);
-
-    // Current velocity angle
-    const currentAngle = Math.atan2(this.ballVY, this.ballVX);
-
-    // Total outgoing angle: flip horizontal + add offset rotation
-    const outAngle = (direction === -1 ? 0 : Math.PI) + offsetAngle;
-
-    // Blend incoming and outgoing for a natural feel (30% incoming, 70% desired)
-    const finalAngle = currentAngle * 0.3 + outAngle * 0.7;
-
-    // Speed up slightly, capped at max
-    let speed = Math.hypot(this.ballVX, this.ballVY) * 1.025;
-    speed = Math.min(speed, this.ballSpeedMax);
-
-    this.ballVX = speed * Math.cos(finalAngle);
-    this.ballVY = speed * Math.sin(finalAngle);
-  }
-
-  private resetBall(direction: 1 | -1): void {
-    this.ballX = this.W / 2;
-    this.ballY = this.H / 2;
-    const angle = (Math.random() - 0.5) * (Math.PI / 4);
-    this.ballVX = direction * this.ballSpeedStart * Math.cos(angle);
-    this.ballVY = this.ballSpeedStart * Math.sin(angle);
-
-    // Randomise AI personality for next rally
-    this.aiSpeed = Math.random() * 4 + 4.5;      // 4.5–8.5
-    this.aiReactionDist = Math.random() * 0.5 - 0.8; // -0.8 … -0.3
-    this.aiLag = Math.floor(Math.random() * 6);    // 0–5 frames
-  }
-
+  /** Render the current frame onto the provided context. */
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     if (!this.active) return;
 
-    // Background — match terminal CRT background
-    ctx.fillStyle = '#444444';
-    ctx.fillRect(0, 0, w, h);
+    // Scale from virtual 500×500 to actual texture size
+    ctx.save();
+    ctx.scale(w / this.VIRTUAL_W, h / this.VIRTUAL_H);
 
-    // Center dotted line
-    ctx.fillStyle = 'rgba(51, 255, 51, 0.12)';
-    for (let y = 0; y < h; y += 22) {
-      ctx.fillRect(w / 2 - 1, y, 2, 11);
+    // Background
+    ctx.fillStyle = '#444444';
+    ctx.fillRect(0, 0, this.VIRTUAL_W, this.VIRTUAL_H);
+
+    // Dashed centre line
+    ctx.fillStyle = 'rgba(51, 255, 51, 0.15)';
+    for (let y = 0; y < this.VIRTUAL_H; y += 24) {
+      ctx.fillRect(this.VIRTUAL_W / 2 - 1, y, 2, 12);
     }
 
     // Paddles
     ctx.fillStyle = '#33ff33';
     ctx.shadowColor = '#33ff33';
     ctx.shadowBlur = 8;
-    ctx.fillRect(this.paddleInset, this.leftY, this.paddleW, this.paddleH);
-    ctx.fillRect(w - this.paddleInset - this.paddleW, this.rightY, this.paddleW, this.paddleH);
+    ctx.fillRect(20, this.paddles[0] * 250 + 225, 10, 50);
+    ctx.fillRect(470, this.paddles[1] * 250 + 225, 10, 50);
     ctx.shadowBlur = 0;
 
     // Ball
     ctx.fillStyle = '#ffffff';
     ctx.shadowColor = '#ffffff';
     ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.arc(this.ballX, this.ballY, this.ballR, 0, Math.PI * 2);
-    ctx.fill();
+    const bx = this.ball[0] * 250 + 245;
+    const by = this.ball[1] * 250 + 245;
+    ctx.fillRect(bx, by, 10, 10);
     ctx.shadowBlur = 0;
 
     // Score
-    ctx.fillStyle = '#33ff33';
-    ctx.font = 'bold 52px monospace';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(String(this.leftScore), w / 4, 36);
-    ctx.fillText(String(this.rightScore), (w * 3) / 4, 36);
+    ctx.font = 'bold 50px monospace';
+    ctx.fillStyle = '#33ff33';
+    ctx.fillText(`${this.score[0]} : ${this.score[1]}`, 250, 100);
 
-    // Controls hint
-    ctx.font = '11px monospace';
+    // Hint
+    ctx.font = '12px monospace';
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('Up/Down or W/S to move    Ctrl+C to quit', w / 2, h - 24);
+    ctx.fillText('Move mouse to play    Ctrl+C to quit', 250, 480);
 
-    // Game Over overlay
-    if (this.gameOver) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.fillStyle = '#ff3333';
-      ctx.font = 'bold 32px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('GAME OVER', w / 2, h / 2 - 36);
-
-      ctx.font = '22px monospace';
-      ctx.fillStyle = '#33ff33';
-      const msg = this.leftScore >= this.winScore ? 'You Win!' : 'AI Wins';
-      ctx.fillText(msg, w / 2, h / 2 + 4);
-
-      ctx.font = '14px monospace';
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.fillText('Press any key to exit', w / 2, h / 2 + 36);
-    }
-
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   }
 }

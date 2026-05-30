@@ -242,7 +242,7 @@ export class CanvasTerminal {
 
     // Pong game tick
     if (this.mode === 'pong') {
-      this.pongGame.update(time);
+      this.pongGame.tick();
       this.dirty = true;
     }
 
@@ -535,7 +535,6 @@ export class CanvasTerminal {
           this.exitPong();
           return;
         }
-        this.pongGame.handleKey(e.key, true);
         // Game-over screen: any key exits
         if (this.pongGame.isGameOver()) {
           this.exitPong();
@@ -580,13 +579,6 @@ export class CanvasTerminal {
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
         this.inputBuffer += e.key;
         this.dirty = true;
-      }
-    });
-
-    // Keyup for Pong paddle release
-    window.addEventListener('keyup', (e) => {
-      if (this.mode === 'pong') {
-        this.pongGame.handleKey(e.key, false);
       }
     });
   }
