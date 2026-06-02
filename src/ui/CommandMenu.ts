@@ -1,7 +1,11 @@
 /**
  * Responsive command menu overlay with grouped, color-coded commands.
  *
- * Commands can have optional flag dropdowns (e.g. contact --mail).
+ * Dropdown panels use `position: fixed` with coordinates computed from
+ * the reference button’s viewport rect.  They close automatically when
+ * the scrollable command-menu-content is scrolled or the window is resized.
+ * This is the standard Popper / Floating UI pattern for dropdowns inside
+ * overflow containers.
  */
 export interface CommandItem {
   name: string;
@@ -35,14 +39,12 @@ export class CommandMenu {
     for (let g = 0; g < groups.length; g++) {
       const group = groups[g];
 
-      // Group label
       const label = document.createElement('div');
       label.className = 'cmd-group-label';
       label.textContent = group.name;
       label.style.color = group.color;
       this.content.appendChild(label);
 
-      // Buttons (some may have dropdowns)
       for (const item of group.commands) {
         const isString = typeof item === 'string';
         const name = isString ? item : item.name;
@@ -74,6 +76,7 @@ export class CommandMenu {
 
           const panel = document.createElement('div');
           panel.className = 'cmd-dropdown-panel';
+          document.body.appendChild(panel);
 
           for (const flag of flags) {
             const flagBtn = document.createElement('button');
@@ -81,8 +84,7 @@ export class CommandMenu {
             flagBtn.textContent = flag;
             flagBtn.addEventListener('click', () => {
               this.onCommand(`${name} ${flag}`);
-              panel.classList.remove('open');
-              arrow.textContent = '▾';
+              this.hidePanel(panel, arrow);
               flagBtn.blur();
             });
             panel.appendChild(flagBtn);
@@ -90,25 +92,20 @@ export class CommandMenu {
 
           arrow.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isOpen = panel.classList.contains('open');
-            // Close all other panels first
-            document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
-            document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
-            if (!isOpen) {
-              panel.classList.add('open');
-              arrow.textContent = '▴';
+            const wasOpen = panel.classList.contains('open');
+            this.closeAllPanels();
+            if (!wasOpen) {
+              this.showPanel(panel, wrapper, arrow);
             }
             arrow.blur();
           });
 
           wrapper.appendChild(arrow);
-          wrapper.appendChild(panel);
         }
 
         this.content.appendChild(wrapper);
       }
 
-      // Divider between groups (not after the last one)
       if (g < groups.length - 1) {
         const divider = document.createElement('div');
         divider.className = 'cmd-divider';
@@ -116,11 +113,43 @@ export class CommandMenu {
       }
     }
 
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
-      document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
-    });
+    // Close on click outside
+    document.addEventListener('click', () => this.closeAllPanels());
+
+    // Close on scroll of the command menu (prevents stuck panels)
+    this.content.addEventListener('scroll', () => this.closeAllPanels(), { passive: true });
+
+    // Close on window resize
+    window.addEventListener('resize', () => this.closeAllPanels());
+  }
+
+  private showPanel(panel: HTMLElement, wrapper: HTMLElement, arrow: HTMLElement): void {
+    const rect = wrapper.getBoundingClientRect();
+    const panelHeight = panel.offsetHeight || 80; // estimate if not rendered yet
+    const gap = 6;
+
+    // Open upward with a gap so the button stays visible
+    let top = rect.top - panelHeight - gap;
+
+    // If there’s no room above, open below
+    if (top < 4) {
+      top = rect.bottom + gap;
+    }
+
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${top}px`;
+    panel.classList.add('open');
+    arrow.textContent = '▴';
+  }
+
+  private hidePanel(panel: HTMLElement, arrow: HTMLElement): void {
+    panel.classList.remove('open');
+    arrow.textContent = '▾';
+  }
+
+  private closeAllPanels(): void {
+    document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
   }
 
   private setupToggle(): void {
