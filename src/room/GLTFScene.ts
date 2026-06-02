@@ -40,7 +40,7 @@ export class GLTFScene {
       0.01,
       100
     );
-    this.camera.position.set(1.10, 0.75, 0);
+    this.camera.position.set(1.114, 0.709, 0.032);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -62,7 +62,7 @@ export class GLTFScene {
     this.controls.dampingFactor = 0.05;
     this.controls.minDistance = 0.3;
     this.controls.maxDistance = 5;
-    this.controls.target.set(0, 0.15, 0);
+    this.controls.target.set(0.014, 0.339, 0.032);
     this.controls.update();
 
     // Debug: log camera position + target after every orbit so you can
@@ -142,8 +142,8 @@ export class GLTFScene {
         model.scale.set(scale, scale, scale);
         model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
 
-        this.controls.target.set(0, size.y * scale * 0.5, 0);
-        this.controls.update();
+        // Keep the manually-tuned target from the constructor
+        // (do NOT override it here or the camera will snap away)
 
         this.findMonitorScreen(model);
       },
