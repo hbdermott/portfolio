@@ -2,6 +2,8 @@
  * Responsive command menu overlay with grouped, color-coded commands.
  *
  * Commands can have optional flag dropdowns (e.g. contact --mail).
+ * Dropdown panels are rendered as `position: fixed` on document.body
+ * so they escape the `overflow-y: auto` clipping of the scroll container.
  */
 export interface CommandItem {
   name: string;
@@ -74,6 +76,8 @@ export class CommandMenu {
 
           const panel = document.createElement('div');
           panel.className = 'cmd-dropdown-panel';
+          // Move panel to body so it isn't clipped by overflow-y: auto
+          document.body.appendChild(panel);
 
           for (const flag of flags) {
             const flagBtn = document.createElement('button');
@@ -81,7 +85,7 @@ export class CommandMenu {
             flagBtn.textContent = flag;
             flagBtn.addEventListener('click', () => {
               this.onCommand(`${name} ${flag}`);
-              panel.classList.remove('open');
+              this.closeAllDropdowns();
               flagBtn.blur();
             });
             panel.appendChild(flagBtn);
@@ -90,10 +94,9 @@ export class CommandMenu {
           arrow.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = panel.classList.contains('open');
-            // Close all other panels + arrows first
-            document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
-            document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
+            this.closeAllDropdowns();
             if (!isOpen) {
+              this.positionPanel(panel, wrapper);
               panel.classList.add('open');
               arrow.textContent = '▴';
             }
@@ -101,7 +104,6 @@ export class CommandMenu {
           });
 
           wrapper.appendChild(arrow);
-          wrapper.appendChild(panel);
         }
 
         this.content.appendChild(wrapper);
@@ -116,10 +118,22 @@ export class CommandMenu {
     }
 
     // Close dropdowns when clicking outside
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
-      document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
-    });
+    document.addEventListener('click', () => this.closeAllDropdowns());
+  }
+
+  private positionPanel(panel: HTMLElement, wrapper: HTMLElement): void {
+    const rect = wrapper.getBoundingClientRect();
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top - panel.offsetHeight - 4}px`;
+    // If panel would go off the top of the screen, open it downward instead
+    if (rect.top - panel.offsetHeight - 4 < 0) {
+      panel.style.top = `${rect.bottom + 4}px`;
+    }
+  }
+
+  private closeAllDropdowns(): void {
+    document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
   }
 
   private setupToggle(): void {

@@ -286,9 +286,28 @@ export class CanvasTerminal {
     } else if (this.mode === 'pong') {
       this.pongGame.render(ctx, w, h);
     } else {
-      // Terminal mode
+      // Terminal mode: draw CRT effects first, then text on top
+      // so text colors stay static and aren't shifted by aperture/noise.
       ctx.fillStyle = this.bgColor;
       ctx.fillRect(0, 0, w, h);
+
+      this.applyVignette(ctx, w, h);
+      this.applyScanlines(ctx, w, h);
+      this.applyApertureGrille(ctx, w, h);
+
+      const skipExpensive = this.booting;
+      if (!skipExpensive) {
+        if (this.enableChromaticGlobal) {
+          if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+            this.chromaticFrameCounter = 0;
+            this.applyChromaticAbberation(ctx, w, h);
+          }
+        }
+        this.applyNoise(ctx, w, h, time);
+      }
+      this.applyFlicker(ctx, w, h, time);
+
+      // Text drawn AFTER all effects — clean, static colors
       this.renderContent(ctx);
     }
 
@@ -315,24 +334,6 @@ export class CanvasTerminal {
       }
       if (cfg.enableNoise) this.applyNoise(ctx, w, h, time);
       if (cfg.enableFlicker) this.applyFlicker(ctx, w, h, time);
-    } else {
-      // Terminal: full CRT suite
-      this.applyVignette(ctx, w, h);
-      this.applyScanlines(ctx, w, h);
-      this.applyApertureGrille(ctx, w, h);
-      // Skip expensive effects during boot — invisible on dim text anyway
-      const skipExpensive = this.booting;
-      if (!skipExpensive) {
-        // Chromatic aberration is expensive; skip frames to save ~67% cost.
-        if (this.enableChromaticGlobal) {
-          if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
-            this.chromaticFrameCounter = 0;
-            this.applyChromaticAbberation(ctx, w, h);
-          }
-        }
-        this.applyNoise(ctx, w, h, time);
-      }
-      this.applyFlicker(ctx, w, h, time);
     }
   }
 
