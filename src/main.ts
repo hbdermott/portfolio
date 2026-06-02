@@ -40,14 +40,13 @@ function main(): void {
     {
       name: 'Portfolio',
       color: '#33ff33',
-      commands: ['about', 'experience', 'skills', 'help'],
-    },
-    {
-      name: 'Explore',
-      color: '#33aaff',
       commands: [
+        'about',
         { name: 'projects', flags: ['--detail CRTTerminalPortfolio', '--detail Tale.ink'] },
+        'experience',
+        'skills',
         { name: 'contact', flags: ['--mail', '--github', '--linkedin', '--copy-email'] },
+        'help',
       ],
     },
     {

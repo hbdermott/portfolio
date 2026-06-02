@@ -90,9 +90,13 @@ export class CommandMenu {
           arrow.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = panel.classList.contains('open');
-            // Close all other panels first
+            // Close all other panels + arrows first
             document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
-            if (!isOpen) panel.classList.add('open');
+            document.querySelectorAll('.cmd-dropdown-arrow.open').forEach(a => a.classList.remove('open'));
+            if (!isOpen) {
+              panel.classList.add('open');
+              arrow.classList.add('open');
+            }
             arrow.blur();
           });
 
@@ -114,6 +118,7 @@ export class CommandMenu {
     // Close dropdowns when clicking outside
     document.addEventListener('click', () => {
       document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.cmd-dropdown-arrow.open').forEach(a => a.classList.remove('open'));
     });
   }
 

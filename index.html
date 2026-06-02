@@ -149,13 +149,18 @@
       border-left: none;
       padding: 6px 8px;
       font-family: inherit;
-      font-size: 10px;
+      font-size: 15px;
       cursor: pointer;
       border-radius: 0 3px 3px 0;
       line-height: 1;
+      height: 100%;
+      transition: transform 0.15s ease;
     }
     .cmd-dropdown-arrow:hover {
       background: rgba(51, 255, 51, 0.15);
+    }
+    .cmd-dropdown-arrow.open {
+      transform: rotate(180deg);
     }
     /* Dropdown panel */
     .cmd-dropdown-panel {
