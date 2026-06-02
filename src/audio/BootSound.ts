@@ -1,8 +1,8 @@
 /**
  * Boot-sound utility — plays the retro PC startup MP3 once on load.
  *
- * Waits for the audio to be fully buffered (canplaythrough), then attempts
- * autoplay. If the browser blocks it, the sound starts on the very next
+ * Tries autoplay as soon as the browser estimates it can play through.
+ * If the browser blocks it (autoplay policy), retries on the very next
  * user interaction and then detaches all listeners.
  */
 export function playBootSound(src: string = '/OldPCBoot.mp3'): HTMLAudioElement {
@@ -16,26 +16,20 @@ export function playBootSound(src: string = '/OldPCBoot.mp3'): HTMLAudioElement 
       .catch((err) => console.warn('[BootSound] Playback blocked:', err.message));
   };
 
-  // Wait for enough audio to buffer before trying autoplay.
-  // `canplaythrough` fires when the browser estimates it can play
-  // to the end without further buffering.
-  audio.addEventListener('canplaythrough', () => {
-    console.log('[BootSound] Buffered, attempting autoplay');
-    tryPlay();
-  }, { once: true });
+  // Try autoplay once the browser thinks it can play to the end.
+  // For cached files this fires almost immediately.
+  audio.addEventListener('canplaythrough', tryPlay, { once: true });
 
-  // Log load errors so we know if the file is missing
+  // Log load errors (wrong path, 404, CORS, etc.)
   audio.addEventListener('error', () => {
     console.error('[BootSound] Failed to load:', src);
   }, { once: true });
 
-  // Fallback: if autoplay was blocked, any user interaction resumes
+  // Fallback: browsers block autoplay without user interaction.
+  // Retry on the very next interaction and then clean up.
   const events = ['click', 'keydown', 'touchstart', 'mousemove'];
   const resume = () => {
-    if (audio.readyState >= 3) {
-      // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
-      tryPlay();
-    }
+    tryPlay();
     events.forEach((e) => document.removeEventListener(e, resume));
   };
   events.forEach((e) =>
