@@ -125,13 +125,19 @@ export class CommandMenu {
 
   private showPanel(panel: HTMLElement, wrapper: HTMLElement, arrow: HTMLElement): void {
     const rect = wrapper.getBoundingClientRect();
-    const panelHeight = panel.offsetHeight || 80; // estimate if not rendered yet
     const gap = 6;
 
-    // Open upward with a gap so the button stays visible
+    // Measure true height: briefly render off-screen
+    panel.style.visibility = 'hidden';
+    panel.classList.add('open');
+    const panelHeight = panel.offsetHeight;
+    panel.classList.remove('open');
+    panel.style.visibility = '';
+
+    // Open upward with a gap so the button stays fully visible
     let top = rect.top - panelHeight - gap;
 
-    // If there’s no room above, open below
+    // If there's no room above, open below
     if (top < 4) {
       top = rect.bottom + gap;
     }
