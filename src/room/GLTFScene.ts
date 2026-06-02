@@ -40,7 +40,7 @@ export class GLTFScene {
       0.01,
       100
     );
-    this.camera.position.set(1.1, 0.88, 0);
+    this.camera.position.set(1.10, 0.75, 0);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -64,6 +64,16 @@ export class GLTFScene {
     this.controls.maxDistance = 5;
     this.controls.target.set(0, 0.15, 0);
     this.controls.update();
+
+    // Debug: log camera position + target after every orbit so you can
+    // copy-paste the values into the source code.
+    this.controls.addEventListener('change', () => {
+      const p = this.camera.position;
+      const t = this.controls.target;
+      console.log(
+        `[OrbitControls] camera.position.set(${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}); controls.target.set(${t.x.toFixed(3)}, ${t.y.toFixed(3)}, ${t.z.toFixed(3)});`
+      );
+    });
 
     this.setupLighting();
     this.loadModel();
