@@ -471,7 +471,7 @@ export class CanvasTerminal {
     let y = this.padding;
 
     for (let i = startLine; i < this.lines.length && i < startLine + this.maxVisibleLines; i++) {
-      this.drawTextWithGlow(ctx, this.lines[i].text, this.padding, y, this.getColorForType(this.lines[i].type));
+      this.drawTextStatic(ctx, this.lines[i].text, this.padding, y, this.getColorForType(this.lines[i].type));
       y += this.lineHeight;
     }
 
@@ -487,6 +487,12 @@ export class CanvasTerminal {
     ctx.shadowBlur = 10;
     ctx.fillText(text, x, y);
     ctx.shadowBlur = 0;
+  }
+
+  /** Static text — no glow/shadow so CRT effects don't cause color flicker. */
+  private drawTextStatic(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string): void {
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
   }
 
   private renderInputLine(ctx: CanvasRenderingContext2D, inputX: number, y: number): void {

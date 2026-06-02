@@ -92,10 +92,10 @@ export class CommandMenu {
             const isOpen = panel.classList.contains('open');
             // Close all other panels + arrows first
             document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
-            document.querySelectorAll('.cmd-dropdown-arrow.open').forEach(a => a.classList.remove('open'));
+            document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
             if (!isOpen) {
               panel.classList.add('open');
-              arrow.classList.add('open');
+              arrow.textContent = '▴';
             }
             arrow.blur();
           });
@@ -118,7 +118,7 @@ export class CommandMenu {
     // Close dropdowns when clicking outside
     document.addEventListener('click', () => {
       document.querySelectorAll('.cmd-dropdown-panel.open').forEach(p => p.classList.remove('open'));
-      document.querySelectorAll('.cmd-dropdown-arrow.open').forEach(a => a.classList.remove('open'));
+      document.querySelectorAll('.cmd-dropdown-arrow').forEach(a => { a.textContent = '▾'; });
     });
   }
 
