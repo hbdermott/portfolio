@@ -1,0 +1,46 @@
+export interface BootLine {
+  text: string;
+  type: 'output' | 'error' | 'dim' | 'prompt';
+  delay: number;
+}
+
+export const BOOT_SEQUENCE: BootLine[] = [
+  { text: 'BIOS Date: 01/15/98 14:22:51 Ver 1.02', type: 'dim', delay: 300 },
+  { text: 'CPU: Intel Pentium II 333MHz', type: 'dim', delay: 80 },
+  { text: 'Speed: 333 MHz', type: 'dim', delay: 60 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Checking NVRAM......', type: 'dim', delay: 200 },
+  { text: '640K RAM System...... OK', type: 'dim', delay: 100 },
+  { text: 'Extended Memory: 65536K', type: 'dim', delay: 80 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Award Plug and Play BIOS Extension v1.0A', type: 'dim', delay: 100 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Detecting HDD Primary Master ...... QUANTUM FIREBALL', type: 'dim', delay: 200 },
+  { text: 'Detecting HDD Primary Slave ...... None', type: 'dim', delay: 100 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Booting from Hard Disk...', type: 'dim', delay: 300 },
+  { text: '', type: 'output', delay: 200 },
+  { text: 'Loading Linux 2.4.20-8...', type: 'dim', delay: 200 },
+  { text: 'ide0: BM-DMA at 0xf000-0xf007, BIOS settings: hda:DMA, hdb:pio', type: 'dim', delay: 80 },
+  { text: 'hda: QUANTUM FIREBALL, ATA DISK drive', type: 'dim', delay: 80 },
+  { text: 'hda: 245664 MB, CHS=623/128/63', type: 'dim', delay: 80 },
+  { text: 'ide1: BM-DMA at 0xf008-0xf00f, BIOS settings: hdc:DMA, hdd:pio', type: 'dim', delay: 80 },
+  { text: 'hdc: SONY CD-ROM CDU, ATAPI CD/DVD-ROM drive', type: 'dim', delay: 80 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Partition check:', type: 'dim', delay: 100 },
+  { text: ' hda: hda1 hda2 < hda5 hda6 >', type: 'dim', delay: 100 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Mounting local filesystems...', type: 'dim', delay: 200 },
+  { text: 'Setting hostname portfolio...', type: 'dim', delay: 100 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Initializing random number generator...', type: 'dim', delay: 150 },
+  { text: 'Starting system logger...', type: 'dim', delay: 100 },
+  { text: 'Starting kernel logger...', type: 'dim', delay: 100 },
+  { text: 'Starting internet superserver...', type: 'dim', delay: 100 },
+  { text: '', type: 'output', delay: 200 },
+  { text: 'System ready.', type: 'output', delay: 100 },
+  { text: '', type: 'output', delay: 100 },
+  { text: 'Welcome to Hunter Dermott Terminal Portfolio v1.0', type: 'output', delay: 100 },
+  { text: 'Type "help" for available commands.', type: 'dim', delay: 0 },
+  { text: '', type: 'output', delay: 0 },
+];

@@ -2,6 +2,40 @@ import type { CommandHandler, CommandResult } from '../types';
 import { aboutContent, projects, experience, skills, contactInfo } from '../data/portfolio';
 import type { CanvasTerminal } from '../terminal/CanvasTerminal';
 
+function makeBox(title: string): string[] {
+  const width = 54;
+  const totalPad = width - title.length;
+  const leftPad = Math.floor(totalPad / 2);
+  const rightPad = totalPad - leftPad;
+  return [
+    '',
+    `╔${'═'.repeat(width)}╗`,
+    `║${' '.repeat(leftPad)}${title}${' '.repeat(rightPad)}║`,
+    `╚${'═'.repeat(width)}╝`,
+    '',
+  ];
+}
+
+const CONTACT_ACTIONS: Record<string, () => CommandResult> = {
+  '--mail': () => {
+    window.location.href = `mailto:${contactInfo.email}`;
+    return { lines: [`Opening mailto:${contactInfo.email}...`] };
+  },
+  '--github': () => {
+    window.open(contactInfo.github, '_blank');
+    return { lines: [`Opening ${contactInfo.github}...`] };
+  },
+  '--linkedin': () => {
+    window.open(contactInfo.linkedin, '_blank');
+    return { lines: [`Opening ${contactInfo.linkedin}...`] };
+  },
+  '--copy-email': () => {
+    navigator.clipboard.writeText(contactInfo.email);
+    return { lines: [`Email ${contactInfo.email} copied to clipboard!`] };
+  },
+  '-c': () => CONTACT_ACTIONS['--copy-email'](),
+};
+
 export class PortfolioCommands {
   private commands: Map<string, CommandHandler>;
   private terminal: CanvasTerminal | null = null;
@@ -20,45 +54,37 @@ export class PortfolioCommands {
   }
 
   private registerCommands(): void {
-    this.commands.set('help', () => {
-      return {
-        lines: [
-           'Portfolio Commands:',
-           '  about       - About me',
-           '  projects    - View my projects',
-           '  experience  - Work experience',
-           '  skills      - Technical skills',
-           '  contact     - Contact information',
-           '  help        - Show this help message',
-           '  clear       - Clear terminal',
-           '  matrix      - Matrix rain effect',
-           '  glitch      - Glitch effect',
-           '  snake       - Play Snake',
-           '  pong        - Play Pong',
-           '',
-            'Linux Commands:',
-            '  ls, cd, pwd, cat, mkdir, touch, rm',
-            '  echo, whoami, date, uname, exit, mail',
-           '',
-           'Tip: Use projects --detail <name> for more info',
-        ]
-      };
-    });
+    this.commands.set('help', () => ({
+      lines: [
+        'Portfolio Commands:',
+        '  about       - About me',
+        '  projects    - View my projects',
+        '  experience  - Work experience',
+        '  skills      - Technical skills',
+        '  contact     - Contact information',
+        '  help        - Show this help message',
+        '  clear       - Clear terminal',
+        '  matrix      - Matrix rain effect',
+        '  glitch      - Glitch effect',
+        '  snake       - Play Snake',
+        '  pong        - Play Pong',
+        '',
+        'Linux Commands:',
+        '  ls, cd, pwd, cat, mkdir, touch, rm',
+        '  echo, whoami, date, uname, exit, mail',
+        '',
+        'Tip: Use projects --detail <name> for more info',
+      ],
+    }));
 
-    this.commands.set('about', () => {
-      return {
-        lines: [
-          '',
-          '╔══════════════════════════════════════════════════════╗',
-          '║                     ABOUT ME                        ║',
-          '╚══════════════════════════════════════════════════════╝',
-          '',
-          ...aboutContent,
-          '',
-        ],
-        type: 'cyan',
-      } as CommandResult;
-    });
+    this.commands.set('about', () => ({
+      lines: [
+        ...makeBox('ABOUT ME'),
+        ...aboutContent,
+        '',
+      ],
+      type: 'cyan',
+    }));
 
     this.commands.set('projects', (args) => {
       if (args.includes('--detail') || args.includes('-d')) {
@@ -67,9 +93,13 @@ export class PortfolioCommands {
         if (!projectName) {
           return { lines: ['Usage: projects --detail <project-name>'], error: true };
         }
-        const project = projects.find(p => p.name.toLowerCase().replace(/\s+/g, '') === projectName.toLowerCase());
+        const slug = projectName.toLowerCase().replace(/\s+/g, '');
+        const project = projects.find(p => p.name.toLowerCase().replace(/\s+/g, '') === slug);
         if (!project) {
-          return { lines: [`Project '${projectName}' not found. Available: ${projects.map(p => p.name).join(', ')}`], error: true };
+          return {
+            lines: [`Project '${projectName}' not found. Available: ${projects.map(p => p.name).join(', ')}`],
+            error: true,
+          };
         }
         return {
           lines: [
@@ -82,15 +112,11 @@ export class PortfolioCommands {
             '',
           ],
           type: 'orange',
-        } as CommandResult;
+        };
       }
 
-      const lines: string[] = [
-        '',
-        '╔══════════════════════════════════════════════════════╗',
-        '║                     PROJECTS                        ║',
-        '╚══════════════════════════════════════════════════════╝',
-        '',
+      const lines = [
+        ...makeBox('PROJECTS'),
       ];
       for (const project of projects) {
         lines.push(`  ${project.name}`);
@@ -100,16 +126,12 @@ export class PortfolioCommands {
       }
       lines.push('  Use projects --detail <name> for more info');
       lines.push('');
-      return { lines, type: 'orange' } as CommandResult;
+      return { lines, type: 'orange' };
     });
 
     this.commands.set('experience', () => {
-      const lines: string[] = [
-        '',
-        '╔══════════════════════════════════════════════════════╗',
-        '║                  WORK EXPERIENCE                     ║',
-        '╚══════════════════════════════════════════════════════╝',
-        '',
+      const lines = [
+        ...makeBox('WORK EXPERIENCE'),
       ];
       for (const entry of experience) {
         lines.push(`  ${entry.company}`);
@@ -119,58 +141,30 @@ export class PortfolioCommands {
         }
         lines.push('');
       }
-      return { lines, type: 'yellow' } as CommandResult;
+      return { lines, type: 'yellow' };
     });
 
     this.commands.set('skills', () => {
-      const lines: string[] = [
-        '',
-        '╔══════════════════════════════════════════════════════╗',
-        '║                    TECHNICAL SKILLS                  ║',
-        '╚══════════════════════════════════════════════════════╝',
-        '',
+      const lines = [
+        ...makeBox('TECHNICAL SKILLS'),
       ];
       for (const [category, items] of Object.entries(skills)) {
         lines.push(`  [ ${category} ]`);
         lines.push(`    ${items.join('  ·  ')}`);
         lines.push('');
       }
-      return { lines, type: 'magenta' } as CommandResult;
+      return { lines, type: 'magenta' };
     });
 
     this.commands.set('contact', (args) => {
-      // --mail → trigger mailto: (behaves like clicking a mailto link)
-      if (args.includes('--mail')) {
-        window.location.href = `mailto:${contactInfo.email}`;
-        return { lines: [`Opening mailto:${contactInfo.email}...`] };
-      }
-
-      // --github → open GitHub profile in new tab
-      if (args.includes('--github')) {
-        window.open(`${contactInfo.github}`, '_blank');
-        return { lines: [`Opening ${contactInfo.github}...`] };
-      }
-
-      // --linkedin → open LinkedIn profile in new tab
-      if (args.includes('--linkedin')) {
-        window.open(`${contactInfo.linkedin}`, '_blank');
-        return { lines: [`Opening ${contactInfo.linkedin}...`] };
-      }
-
-      if (args.includes('--copy-email') || args.includes('-c')) {
-        navigator.clipboard.writeText(contactInfo.email).then(() => {
-          // Async - handled by return message
-        });
-        return { lines: [`Email ${contactInfo.email} copied to clipboard!`] };
+      for (const arg of args) {
+        const action = CONTACT_ACTIONS[arg];
+        if (action) return action();
       }
 
       return {
         lines: [
-          '',
-          '╔══════════════════════════════════════════════════════╗',
-          '║                   CONTACT INFO                       ║',
-          '╚══════════════════════════════════════════════════════╝',
-          '',
+          ...makeBox('CONTACT INFO'),
           `  Email:    ${contactInfo.email}`,
           `  GitHub:   ${contactInfo.github}`,
           `  LinkedIn: ${contactInfo.linkedin}`,
@@ -183,12 +177,10 @@ export class PortfolioCommands {
           '',
         ],
         type: 'white',
-      } as CommandResult;
+      };
     });
 
-    this.commands.set('clear', () => {
-      return { lines: [], clear: true };
-    });
+    this.commands.set('clear', () => ({ lines: [], clear: true }));
 
     this.commands.set('matrix', () => {
       this.terminal?.startMatrixRain();

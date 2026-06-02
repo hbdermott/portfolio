@@ -5,6 +5,8 @@ import { MatrixRain } from '../animations/MatrixRain';
 import { GlitchEffect } from '../animations/GlitchEffect';
 import { SnakeGame } from '../games/SnakeGame';
 import { PongGame } from '../games/PongGame';
+import { TERMINAL_CONFIG, SHUTDOWN_TIMING, CRT_EFFECTS, THEME } from './TerminalConfig';
+import { BOOT_SEQUENCE } from './BootSequence';
 
 interface TerminalLine {
   text: string;
@@ -27,77 +29,45 @@ export class CanvasTerminal {
 
   private cursorVisible = true;
   private lastBlinkTime = 0;
-  private blinkInterval = 530; // ms
 
   private booting = true;
   private dirty = true;
 
-  // Layout constants
-  private readonly width = 1024;
-  private readonly height = 768;
-  private readonly fontSize = 16;
-  private readonly lineHeight = 20;
-  private readonly padding = 24;
-  private readonly textColor = '#33ff33';
-  private readonly dimColor = '#1a8a1a';
-  private readonly errorColor = '#ff3333';
-  private readonly cyanColor = '#33ffff';
-  private readonly yellowColor = '#ffff33';
-  private readonly magentaColor = '#ff33ff';
-  private readonly orangeColor = '#ff9933';
-  private readonly whiteColor = '#ffffff';
-  private readonly blueColor = '#3388ff';
-  private readonly bgColor = '#444444';
-
-  // CRT effect scalers (0.0 = off, 1.0 = full)
-  private readonly VIGNETTE_STRENGTH   = 0.6;
-  private readonly SCANLINE_STRENGTH   = 0.7;
-  private readonly APERTURE_STRENGTH   = 0.3;
-  private readonly CHROMATIC_STRENGTH = 0.5;
-  private readonly NOISE_STRENGTH      = 1;
-  private readonly FLICKER_STRENGTH    = 0.3;
-
-  // Global kill-switch for chromatic aberration (major perf cost)
-  private enableChromaticGlobal = false;
-
-  // Performance: only apply chromatic aberration every N frames
-  private chromaticFrameCounter = 0;
-  private readonly CHROMATIC_FRAME_SKIP = 2; // run every 3rd frame
-
-  // Pre-rendered CRT pattern canvases (lazy-initialized)
-  private aperturePattern: HTMLCanvasElement | null = null;
-  private scanlinePattern: HTMLCanvasElement | null = null;
-
+  // Computed layout
   private charWidth = 9.6;
   private maxVisibleLines = 0;
   private scrollOffset = 0;
   private promptWidth = 0;
   private keyboardSound = new KeyboardSound('/keyboard.mp3');
 
-  // ─── Modes & effects ───
+  // Modes & effects
   private mode: TerminalMode = 'terminal';
   private matrixRain = new MatrixRain();
   private glitch = new GlitchEffect();
   private snakeGame = new SnakeGame(() => this.exitSnake());
   private pongGame = new PongGame();
   private lastActivity = 0;
-  private readonly IDLE_MS = 30000; // 30s screensaver timeout
 
-  // ─── Shutdown animation ───
+  // Global kill-switch for chromatic aberration (major perf cost)
+  private enableChromaticGlobal = false;
+  private chromaticFrameCounter = 0;
+
+  // Pre-rendered CRT pattern canvases (lazy-initialized)
+  private aperturePattern: HTMLCanvasElement | null = null;
+  private scanlinePattern: HTMLCanvasElement | null = null;
+
+  // Shutdown animation
   private shutdownMode = false;
   private shutdownPending = false;
   private shutdownTime = 0;
-  private readonly SHUTDOWN_SHOW_MS = 750;
-  private readonly SHUTDOWN_CLOSE_MS = 125;
-  private readonly SHUTDOWN_TOTAL_MS = 2500;
 
   constructor(commandParser: CommandParser, enableChromatic = true) {
     this.commandParser = commandParser;
     this.enableChromaticGlobal = enableChromatic;
 
     this.canvas = document.createElement('canvas');
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    this.canvas.width = TERMINAL_CONFIG.width;
+    this.canvas.height = TERMINAL_CONFIG.height;
 
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('Failed to get 2D context');
@@ -108,13 +78,14 @@ export class CanvasTerminal {
     this.texture.magFilter = THREE.LinearFilter;
     this.texture.colorSpace = THREE.SRGBColorSpace;
 
-    this.ctx.font = `${this.fontSize}px 'Courier New', monospace`;
+    this.ctx.font = `${TERMINAL_CONFIG.fontSize}px 'Courier New', monospace`;
     this.charWidth = this.ctx.measureText('M').width;
     this.promptWidth = this.ctx.measureText(this.promptText + ' ').width;
-    this.maxVisibleLines = Math.floor((this.height - this.padding * 2) / this.lineHeight);
+    this.maxVisibleLines = Math.floor(
+      (TERMINAL_CONFIG.height - TERMINAL_CONFIG.padding * 2) / TERMINAL_CONFIG.lineHeight
+    );
 
     this.setupKeyboard();
-    this.setupTapFocus();
     this.runBootSequence();
     this.keyboardSound.load();
   }
@@ -142,7 +113,6 @@ export class CanvasTerminal {
   injectCommand(cmd: string): void {
     this.lastActivity = performance.now();
 
-    // Interrupt active special modes before running the command
     if (this.mode === 'matrix') {
       this.stopMatrixRain();
     } else if (this.mode === 'snake') {
@@ -165,7 +135,7 @@ export class CanvasTerminal {
   /** Start Matrix Rain screensaver immediately. */
   startMatrixRain(config?: import('../animations/MatrixRain').MatrixConfig): void {
     this.mode = 'matrix';
-    this.matrixRain.start(this.width, this.height, config);
+    this.matrixRain.start(TERMINAL_CONFIG.width, TERMINAL_CONFIG.height, config);
     this.dirty = true;
   }
 
@@ -223,7 +193,7 @@ export class CanvasTerminal {
     }
     if (this.shutdownMode) {
       const elapsed = time - this.shutdownTime;
-      if (elapsed > this.SHUTDOWN_TOTAL_MS) {
+      if (elapsed > SHUTDOWN_TIMING.totalMs) {
         this.shutdownMode = false;
         this.lines = [];
         this.inputBuffer = '';
@@ -233,7 +203,7 @@ export class CanvasTerminal {
 
     // Cursor blink (terminal only)
     if (this.mode === 'terminal' && !this.booting && !this.shutdownMode) {
-      if (time - this.lastBlinkTime > this.blinkInterval) {
+      if (time - this.lastBlinkTime > TERMINAL_CONFIG.blinkInterval) {
         this.cursorVisible = !this.cursorVisible;
         this.lastBlinkTime = time;
         this.dirty = true;
@@ -258,7 +228,12 @@ export class CanvasTerminal {
     }
 
     // Auto-start screensaver after idle
-    if (this.mode === 'terminal' && !this.booting && !this.shutdownMode && time - this.lastActivity > this.IDLE_MS) {
+    if (
+      this.mode === 'terminal' &&
+      !this.booting &&
+      !this.shutdownMode &&
+      time - this.lastActivity > TERMINAL_CONFIG.idleTimeout
+    ) {
       this.startMatrixRain();
     }
 
@@ -271,8 +246,8 @@ export class CanvasTerminal {
 
   private render(time: number): void {
     const ctx = this.ctx;
-    const w = this.width;
-    const h = this.height;
+    const w = TERMINAL_CONFIG.width;
+    const h = TERMINAL_CONFIG.height;
 
     if (this.shutdownMode) {
       this.renderShutdown(ctx, w, h, time);
@@ -287,8 +262,7 @@ export class CanvasTerminal {
       this.pongGame.render(ctx, w, h);
     } else {
       // Terminal mode: draw CRT effects first, then text on top
-      // so text colors stay static and aren't shifted by aperture/noise.
-      ctx.fillStyle = this.bgColor;
+      ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, w, h);
 
       this.applyVignette(ctx, w, h);
@@ -298,7 +272,7 @@ export class CanvasTerminal {
       const skipExpensive = this.booting;
       if (!skipExpensive) {
         if (this.enableChromaticGlobal) {
-          if (++this.chromaticFrameCounter > this.CHROMATIC_FRAME_SKIP) {
+          if (++this.chromaticFrameCounter > CRT_EFFECTS.chromaticFrameSkip) {
             this.chromaticFrameCounter = 0;
             this.applyChromaticAbberation(ctx, w, h);
           }
@@ -316,12 +290,11 @@ export class CanvasTerminal {
       this.renderGlitch(ctx, w, h);
     }
 
-    // CRT effects — snake/pong get minimal set to avoid visual distortion
+    // CRT effects — snake/pong get minimal set
     if (this.mode === 'snake' || this.mode === 'pong') {
       this.applyScanlines(ctx, w, h);
       this.applyFlicker(ctx, w, h, time);
     } else if (this.mode === 'matrix') {
-      // Matrix: per-effect config from MatrixRain
       const cfg = this.matrixRain.getConfig();
       if (cfg.enableVignette) this.applyVignette(ctx, w, h);
       if (cfg.enableScanlines) this.applyScanlines(ctx, w, h);
@@ -340,7 +313,7 @@ export class CanvasTerminal {
   private renderGlitch(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const intensity = this.glitch.getIntensity();
 
-    // 1. Block displacement — copy random chunks and shift them horizontally
+    // 1. Block displacement
     const blocks = Math.floor(6 * intensity);
     for (let i = 0; i < blocks; i++) {
       const bw = Math.random() * w * 0.4 + 40;
@@ -365,7 +338,7 @@ export class CanvasTerminal {
       ctx.restore();
     }
 
-    // 3. Heavy noise burst — mix of green, white, and black static
+    // 3. Heavy noise burst
     const count = Math.floor(4000 * intensity);
     for (let i = 0; i < count; i++) {
       const r = Math.random();
@@ -382,7 +355,7 @@ export class CanvasTerminal {
       ctx.fillRect(px, py, pw, 1);
     }
 
-    // 4. Thick RGB split bands (horizontal scanline disruption)
+    // 4. Thick RGB split bands
     const bands = Math.floor(8 * intensity);
     for (let i = 0; i < bands; i++) {
       const by = Math.random() * h;
@@ -395,37 +368,33 @@ export class CanvasTerminal {
   private renderShutdown(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
     const elapsed = time - this.shutdownTime;
 
-    // Phase 1: show content (first 900ms) — no flicker, just a calm pause
-    if (elapsed < this.SHUTDOWN_SHOW_MS) {
-      ctx.fillStyle = this.bgColor;
+    // Phase 1: show content
+    if (elapsed < SHUTDOWN_TIMING.showMs) {
+      ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, w, h);
       this.renderContent(ctx);
       return;
     }
 
     // Phase 2: black bars close from top and bottom
-    const closeElapsed = elapsed - this.SHUTDOWN_SHOW_MS;
-    if (closeElapsed < this.SHUTDOWN_CLOSE_MS) {
-      const p = closeElapsed / this.SHUTDOWN_CLOSE_MS;
+    const closeElapsed = elapsed - SHUTDOWN_TIMING.showMs;
+    if (closeElapsed < SHUTDOWN_TIMING.closeMs) {
+      const p = closeElapsed / SHUTDOWN_TIMING.closeMs;
       const barH = (h / 2) * p;
 
-      // Draw terminal content first
-      ctx.fillStyle = this.bgColor;
+      ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, w, h);
       this.renderContent(ctx);
 
-      // Top and bottom collapsing black bars
       ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, w, barH);           // top bar growing down
-      ctx.fillRect(0, h - barH, w, barH);    // bottom bar growing up
+      ctx.fillRect(0, 0, w, barH);
+      ctx.fillRect(0, h - barH, w, barH);
 
-      // Subtle scanlines over the black bars (dark gray so they're visible)
       ctx.fillStyle = 'rgba(30, 30, 30, 0.4)';
       for (let y = 0; y < h; y += 2) {
         ctx.fillRect(0, y, w, 1);
       }
 
-      // White horizontal flash line when bars nearly meet
       const gap = h - barH * 2;
       if (gap < 8 && gap > 0) {
         ctx.fillStyle = '#ffffff';
@@ -435,21 +404,22 @@ export class CanvasTerminal {
         ctx.shadowBlur = 0;
       }
 
-      // Slight horizontal squeeze as bars meet
       const squeeze = 1.0 - p * 0.08;
       if (squeeze < 1.0) {
-        ctx.drawImage(this.canvas, 0, 0, w, h,
+        ctx.drawImage(
+          this.canvas, 0, 0, w, h,
           w * (1 - squeeze) * 0.5, h * (1 - squeeze) * 0.5,
-          w * squeeze, h * squeeze);
+          w * squeeze, h * squeeze
+        );
       }
       return;
     }
 
-    // Phase 3: black screen + faint "NO SIGNAL" after a pause
+    // Phase 3: black screen + faint "NO SIGNAL"
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, w, h);
 
-    if (elapsed > this.SHUTDOWN_SHOW_MS + this.SHUTDOWN_CLOSE_MS + 400) {
+    if (elapsed > SHUTDOWN_TIMING.showMs + SHUTDOWN_TIMING.closeMs + 400) {
       ctx.fillStyle = '#222222';
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
@@ -466,19 +436,19 @@ export class CanvasTerminal {
       startLine = Math.max(0, Math.min(startLine + this.scrollOffset, totalLines - this.maxVisibleLines));
     }
 
-    ctx.font = `${this.fontSize}px 'Courier New', monospace`;
+    ctx.font = `${TERMINAL_CONFIG.fontSize}px 'Courier New', monospace`;
     ctx.textBaseline = 'top';
 
-    let y = this.padding;
+    let y = TERMINAL_CONFIG.padding;
 
     for (let i = startLine; i < this.lines.length && i < startLine + this.maxVisibleLines; i++) {
-      this.drawTextStatic(ctx, this.lines[i].text, this.padding, y, this.getColorForType(this.lines[i].type));
-      y += this.lineHeight;
+      this.drawTextStatic(ctx, this.lines[i].text, TERMINAL_CONFIG.padding, y, this.getColorForType(this.lines[i].type));
+      y += TERMINAL_CONFIG.lineHeight;
     }
 
     if (!this.booting && this.lines.length - startLine < this.maxVisibleLines) {
-      this.drawTextWithGlow(ctx, this.promptText + ' ', this.padding, y, this.textColor);
-      this.renderInputLine(ctx, this.padding + this.promptWidth, y);
+      this.drawTextWithGlow(ctx, this.promptText + ' ', TERMINAL_CONFIG.padding, y, THEME.text);
+      this.renderInputLine(ctx, TERMINAL_CONFIG.padding + this.promptWidth, y);
     }
   }
 
@@ -500,17 +470,15 @@ export class CanvasTerminal {
     const buf = this.inputBuffer;
     const len = buf.length;
 
-    // Draw every character normally.
     for (let i = 0; i < len; i++) {
       const charX = inputX + i * this.charWidth;
-      this.drawTextWithGlow(ctx, buf[i], charX, y, this.textColor);
+      this.drawTextWithGlow(ctx, buf[i], charX, y, THEME.text);
     }
 
-    // Single cursor block right after the last character (or at the start if empty).
     if (this.cursorVisible) {
       const cursorX = inputX + len * this.charWidth;
-      ctx.fillStyle = this.textColor;
-      ctx.fillRect(cursorX, y, this.charWidth, this.lineHeight);
+      ctx.fillStyle = THEME.text;
+      ctx.fillRect(cursorX, y, this.charWidth, TERMINAL_CONFIG.lineHeight);
     }
   }
 
@@ -518,20 +486,16 @@ export class CanvasTerminal {
 
   private setupKeyboard(): void {
     window.addEventListener('keydown', (e) => {
-      // Ignore input during shutdown
       if (this.shutdownMode || this.shutdownPending) return;
 
-      // Wake from screensaver on any key
       if (this.mode === 'matrix') {
         this.stopMatrixRain();
         this.lastActivity = performance.now();
         return;
       }
 
-      // Snake game input (no typing sounds during game)
       if (this.mode === 'snake') {
         this.lastActivity = performance.now();
-        // Ctrl+C quits snake
         if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
           this.exitSnake();
           return;
@@ -540,15 +504,12 @@ export class CanvasTerminal {
         return;
       }
 
-      // Pong game input
       if (this.mode === 'pong') {
         this.lastActivity = performance.now();
-        // Ctrl+C quits pong
         if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
           this.exitPong();
           return;
         }
-        // Game-over screen: any key exits
         if (this.pongGame.isGameOver()) {
           this.exitPong();
           return;
@@ -559,7 +520,7 @@ export class CanvasTerminal {
       if (this.booting) return;
       this.lastActivity = performance.now();
 
-      // Ctrl+C interrupts current input, prints ^C, and returns to prompt
+      // Ctrl+C interrupts current input
       if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
         if (this.inputBuffer.length > 0) {
@@ -596,32 +557,9 @@ export class CanvasTerminal {
     });
   }
 
-  private setupTapFocus(): void {
-    // Tap anywhere on the 3D canvas to summon mobile keyboard
-    const container = document.getElementById('canvas-container');
-    if (container) {
-      // container.addEventListener('touchstart', () => this.focusInput(), { passive: true });
-      // container.addEventListener('click', () => this.focusInput());
-    }
-  }
-
   private executeCommand(): void {
     const input = this.inputBuffer.trim();
     if (!input) {
-      this.inputBuffer = '';
-      this.dirty = true;
-      return;
-    }
-
-    // Detect exit command and trigger shutdown
-    if (input.toLowerCase() === 'exit') {
-      this.lines.push({ text: `${this.promptText} ${input}`, type: 'prompt' });
-      const result = this.commandParser.parse(input);
-      const lineType = result.type ?? (result.error ? 'error' : 'output');
-      for (const line of result.lines) {
-        this.lines.push({ text: line, type: lineType });
-      }
-      this.shutdownPending = true;
       this.inputBuffer = '';
       this.dirty = true;
       return;
@@ -639,8 +577,13 @@ export class CanvasTerminal {
       }
     }
 
-    this.commandHistory.push(input);
-    this.historyIndex = this.commandHistory.length;
+    if (input.toLowerCase() === 'exit') {
+      this.shutdownPending = true;
+    } else {
+      this.commandHistory.push(input);
+      this.historyIndex = this.commandHistory.length;
+    }
+
     this.inputBuffer = '';
     this.dirty = true;
   }
@@ -664,22 +607,22 @@ export class CanvasTerminal {
 
   private getColorForType(type: string): string {
     switch (type) {
-      case 'error': return this.errorColor;
-      case 'dim': return this.dimColor;
-      case 'cyan': return this.cyanColor;
-      case 'yellow': return this.yellowColor;
-      case 'magenta': return this.magentaColor;
-      case 'orange': return this.orangeColor;
-      case 'white': return this.whiteColor;
-      case 'blue': return this.blueColor;
-      default: return this.textColor;
+      case 'error': return THEME.error;
+      case 'dim': return THEME.dim;
+      case 'cyan': return THEME.cyan;
+      case 'yellow': return THEME.yellow;
+      case 'magenta': return THEME.magenta;
+      case 'orange': return THEME.orange;
+      case 'white': return THEME.white;
+      case 'blue': return THEME.blue;
+      default: return THEME.text;
     }
   }
 
   // ─── CRT Effects ───
 
   private applyVignette(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const s = this.VIGNETTE_STRENGTH;
+    const s = CRT_EFFECTS.vignette;
     if (s <= 0) return;
     const gradient = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.9);
     gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -690,7 +633,7 @@ export class CanvasTerminal {
   }
 
   private applyScanlines(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const s = this.SCANLINE_STRENGTH;
+    const s = CRT_EFFECTS.scanline;
     if (s <= 0) return;
     if (!this.scanlinePattern) {
       this.scanlinePattern = this.buildScanlinePattern(w, h, s);
@@ -715,7 +658,7 @@ export class CanvasTerminal {
   }
 
   private applyApertureGrille(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const s = this.APERTURE_STRENGTH;
+    const s = CRT_EFFECTS.aperture;
     if (s <= 0) return;
     if (!this.aperturePattern) {
       this.aperturePattern = this.buildAperturePattern(w, h, s);
@@ -742,7 +685,7 @@ export class CanvasTerminal {
   }
 
   private applyChromaticAbberation(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const s = this.CHROMATIC_STRENGTH;
+    const s = CRT_EFFECTS.chromatic;
     if (s <= 0) return;
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
@@ -772,7 +715,7 @@ export class CanvasTerminal {
   }
 
   private applyNoise(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
-    const s = this.NOISE_STRENGTH;
+    const s = CRT_EFFECTS.noise;
     if (s <= 0) return;
     const seed = Math.floor(time / 80);
     const noiseCount = Math.round(800 * s);
@@ -780,7 +723,6 @@ export class CanvasTerminal {
     const boundW = w - margin * 2;
     const boundH = h - margin * 2;
 
-    // Batch by color — only 2 fillStyle changes instead of 800
     ctx.fillStyle = `rgba(200, 255, 200, ${0.22 * s})`;
     for (let i = 0; i < noiseCount; i++) {
       const hash = Math.abs(Math.sin(i * 12.9898 + seed * 78.233));
@@ -803,7 +745,7 @@ export class CanvasTerminal {
   }
 
   private applyFlicker(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
-    const s = this.FLICKER_STRENGTH;
+    const s = CRT_EFFECTS.flicker;
     if (s <= 0) return;
     const flicker = 0.5 + 0.5 * Math.sin(time * 0.05);
     const alpha = (0.02 + flicker * 0.04) * s;
@@ -823,48 +765,7 @@ export class CanvasTerminal {
   // ─── Boot ───
 
   private async runBootSequence(): Promise<void> {
-    const bootLines: { text: string; type: TerminalLine['type']; delay: number }[] = [
-      { text: 'BIOS Date: 01/15/98 14:22:51 Ver 1.02', type: 'dim', delay: 300 },
-      { text: 'CPU: Intel Pentium II 333MHz', type: 'dim', delay: 80 },
-      { text: 'Speed: 333 MHz', type: 'dim', delay: 60 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Checking NVRAM......', type: 'dim', delay: 200 },
-      { text: '640K RAM System...... OK', type: 'dim', delay: 100 },
-      { text: 'Extended Memory: 65536K', type: 'dim', delay: 80 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Award Plug and Play BIOS Extension v1.0A', type: 'dim', delay: 100 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Detecting HDD Primary Master ...... QUANTUM FIREBALL', type: 'dim', delay: 200 },
-      { text: 'Detecting HDD Primary Slave ...... None', type: 'dim', delay: 100 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Booting from Hard Disk...', type: 'dim', delay: 300 },
-      { text: '', type: 'output', delay: 200 },
-      { text: 'Loading Linux 2.4.20-8...', type: 'dim', delay: 200 },
-      { text: 'ide0: BM-DMA at 0xf000-0xf007, BIOS settings: hda:DMA, hdb:pio', type: 'dim', delay: 80 },
-      { text: 'hda: QUANTUM FIREBALL, ATA DISK drive', type: 'dim', delay: 80 },
-      { text: 'hda: 245664 MB, CHS=623/128/63', type: 'dim', delay: 80 },
-      { text: 'ide1: BM-DMA at 0xf008-0xf00f, BIOS settings: hdc:DMA, hdd:pio', type: 'dim', delay: 80 },
-      { text: 'hdc: SONY CD-ROM CDU, ATAPI CD/DVD-ROM drive', type: 'dim', delay: 80 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Partition check:', type: 'dim', delay: 100 },
-      { text: ' hda: hda1 hda2 < hda5 hda6 >', type: 'dim', delay: 100 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Mounting local filesystems...', type: 'dim', delay: 200 },
-      { text: 'Setting hostname portfolio...', type: 'dim', delay: 100 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Initializing random number generator...', type: 'dim', delay: 150 },
-      { text: 'Starting system logger...', type: 'dim', delay: 100 },
-      { text: 'Starting kernel logger...', type: 'dim', delay: 100 },
-      { text: 'Starting internet superserver...', type: 'dim', delay: 100 },
-      { text: '', type: 'output', delay: 200 },
-      { text: 'System ready.', type: 'output', delay: 100 },
-      { text: '', type: 'output', delay: 100 },
-      { text: 'Welcome to Hunter Dermott Terminal Portfolio v1.0', type: 'output', delay: 100 },
-      { text: 'Type "help" for available commands.', type: 'dim', delay: 0 },
-      { text: '', type: 'output', delay: 0 },
-    ];
-
-    for (const line of bootLines) {
+    for (const line of BOOT_SEQUENCE) {
       await this.delay(line.delay);
       this.lines.push({ text: line.text, type: line.type });
       this.dirty = true;

@@ -3,6 +3,18 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { CanvasTerminal } from '../terminal/CanvasTerminal';
 
+/** Projection-mapping config for the terminal texture onto the monitor mesh. */
+const PROJECTION = {
+  /** Flip vertically if text appears upside-down. */
+  flipV: false,
+  /** Flip horizontally if text appears mirrored. */
+  flipU: true,
+  /** Swap axes if the screen surface is rotated 90° in the model. */
+  swapAxes: false,
+  /** Fraction of screen to leave as black bezel (negative = overflow). */
+  bezelPadding: -0.05,
+} as const;
+
 export class GLTFScene {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -13,17 +25,6 @@ export class GLTFScene {
   private monitorScreenMesh: THREE.Mesh | null = null;
 
   private animationId: number | null = null;
-
-  // ─── Terminal projection-mapping config ───
-  // The terminal canvas is planar-projected onto the glass mesh.
-  // FLIP_V: true to flip vertically if text appears upside-down.
-  // FLIP_U: true to flip horizontally if text appears mirrored.
-  // SWAP_AXES: true if the screen surface is rotated 90° in the model.
-  // BEZEL_PADDING: fraction of screen to leave as black bezel (0 = edge-to-edge, 0.1 = 10% bezel on each side)
-  private readonly PROJ_FLIP_V = false;
-  private readonly PROJ_FLIP_U = true;
-  private readonly PROJ_SWAP_AXES = false;  
-  private readonly PROJ_BEZEL_PADDING = -0.05;
 
   constructor(container: HTMLElement, terminal: CanvasTerminal) {
     this.terminal = terminal;
@@ -181,11 +182,8 @@ export class GLTFScene {
   }
 
   private applyTerminalTexture(mesh: THREE.Mesh): void {
-    // 1. Compute planar-projection UVs so the terminal maps 1:1 onto the
-    //    screen surface, preserving aspect ratio (letterboxed if needed).
     this.projectionMapUVs(mesh);
 
-    // 2. Apply texture with GLTF top-left origin
     const texture = this.terminal.getTexture();
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.flipY = false; // top-left origin = upright text
@@ -231,8 +229,8 @@ export class GLTFScene {
       { axis: 'z', size: localSize.z, idx: 2 },
     ].sort((a, b) => b.size - a.size);
 
-    const uDim = this.PROJ_SWAP_AXES ? dims[1] : dims[0];
-    const vDim = this.PROJ_SWAP_AXES ? dims[0] : dims[1];
+    const uDim = PROJECTION.swapAxes ? dims[1] : dims[0];
+    const vDim = PROJECTION.swapAxes ? dims[0] : dims[1];
 
     // Aspect ratios
     const terminalCanvas = this.terminal.getCanvas();
@@ -257,7 +255,7 @@ export class GLTFScene {
     }
 
     // Apply bezel padding: shrink content inward, leaving black space at edges
-    const bezel = this.PROJ_BEZEL_PADDING;
+    const bezel = PROJECTION.bezelPadding;
     uScale *= (1.0 - 2.0 * bezel);
     vScale *= (1.0 - 2.0 * bezel);
     uOffset += bezel;
@@ -279,8 +277,8 @@ export class GLTFScene {
       let u = rawU * uScale + uOffset;
       let v = rawV * vScale + vOffset;
 
-      if (this.PROJ_FLIP_U) u = 1.0 - u;
-      if (this.PROJ_FLIP_V) v = 1.0 - v;
+      if (PROJECTION.flipU) u = 1.0 - u;
+      if (PROJECTION.flipV) v = 1.0 - v;
 
       newUvs[i * 2] = u;
       newUvs[i * 2 + 1] = v;
