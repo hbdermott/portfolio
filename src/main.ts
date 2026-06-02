@@ -5,8 +5,12 @@ import { FileSystem } from './commands/FileSystem';
 import { CanvasTerminal } from './terminal/CanvasTerminal';
 import { GLTFScene } from './room/GLTFScene';
 import { CommandMenu, type CommandGroup } from './ui/CommandMenu';
+import { playBootSound } from './audio/BootSound';
 
 function main(): void {
+  // Play boot sound on load
+  playBootSound('/OldPCBoot.mp3');
+
   // Initialize command system
   const fileSystem = new FileSystem();
   const portfolioCommands = new PortfolioCommands();
@@ -36,7 +40,15 @@ function main(): void {
     {
       name: 'Portfolio',
       color: '#33ff33',
-      commands: ['about', 'projects', 'experience', 'skills', 'contact', 'help'],
+      commands: ['about', 'experience', 'skills', 'help'],
+    },
+    {
+      name: 'Explore',
+      color: '#33aaff',
+      commands: [
+        { name: 'projects', flags: ['--detail CRTTerminalPortfolio', '--detail Tale.ink'] },
+        { name: 'contact', flags: ['--mail', '--github', '--linkedin', '--copy-email'] },
+      ],
     },
     {
       name: 'Effects & Games',

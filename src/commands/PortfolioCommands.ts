@@ -1,4 +1,4 @@
-import type { CommandHandler } from '../types';
+import type { CommandHandler, CommandResult } from '../types';
 import { aboutContent, projects, experience, skills, contactInfo } from '../data/portfolio';
 import type { CanvasTerminal } from '../terminal/CanvasTerminal';
 
@@ -46,7 +46,18 @@ export class PortfolioCommands {
     });
 
     this.commands.set('about', () => {
-      return { lines: aboutContent };
+      return {
+        lines: [
+          '',
+          '╔══════════════════════════════════════════════════════╗',
+          '║                     ABOUT ME                        ║',
+          '╚══════════════════════════════════════════════════════╝',
+          '',
+          ...aboutContent,
+          '',
+        ],
+        type: 'cyan',
+      } as CommandResult;
     });
 
     this.commands.set('projects', (args) => {
@@ -62,45 +73,69 @@ export class PortfolioCommands {
         }
         return {
           lines: [
-            `Project: ${project.name}`,
-            `Technologies: ${project.technologies.join(', ')}`,
             '',
-            project.detail,
-          ]
-        };
+            `┌─ Project: ${project.name}`,
+            `│ Technologies: ${project.technologies.join(', ')}`,
+            '│',
+            `│ ${project.detail}`,
+            '└─────────────────────────────────────────────────────',
+            '',
+          ],
+          type: 'orange',
+        } as CommandResult;
       }
 
-      const lines = ['Projects:'];
+      const lines: string[] = [
+        '',
+        '╔══════════════════════════════════════════════════════╗',
+        '║                     PROJECTS                        ║',
+        '╚══════════════════════════════════════════════════════╝',
+        '',
+      ];
       for (const project of projects) {
-        lines.push(`  ${project.name} - ${project.description}`);
+        lines.push(`  ${project.name}`);
+        lines.push(`    ${project.description}`);
         lines.push(`    Tech: ${project.technologies.join(', ')}`);
         lines.push('');
       }
-      lines.push('Use projects --detail <name> for more information');
-      return { lines };
+      lines.push('  Use projects --detail <name> for more info');
+      lines.push('');
+      return { lines, type: 'orange' } as CommandResult;
     });
 
     this.commands.set('experience', () => {
-      const lines: string[] = ['Work Experience:'];
+      const lines: string[] = [
+        '',
+        '╔══════════════════════════════════════════════════════╗',
+        '║                  WORK EXPERIENCE                     ║',
+        '╚══════════════════════════════════════════════════════╝',
+        '',
+      ];
       for (const entry of experience) {
-        lines.push(`  ${entry.company} - ${entry.role}`);
-        lines.push(`  ${entry.dates}`);
+        lines.push(`  ${entry.company}`);
+        lines.push(`    ${entry.role}  |  ${entry.dates}`);
         for (const bullet of entry.bullets) {
-          lines.push(`    - ${bullet}`);
+          lines.push(`    • ${bullet}`);
         }
         lines.push('');
       }
-      return { lines };
+      return { lines, type: 'yellow' } as CommandResult;
     });
 
     this.commands.set('skills', () => {
-      const lines: string[] = ['Skills:'];
+      const lines: string[] = [
+        '',
+        '╔══════════════════════════════════════════════════════╗',
+        '║                    TECHNICAL SKILLS                  ║',
+        '╚══════════════════════════════════════════════════════╝',
+        '',
+      ];
       for (const [category, items] of Object.entries(skills)) {
-        lines.push(`  ${category}:`);
-        lines.push(`    ${items.join(', ')}`);
+        lines.push(`  [ ${category} ]`);
+        lines.push(`    ${items.join('  ·  ')}`);
         lines.push('');
       }
-      return { lines };
+      return { lines, type: 'magenta' } as CommandResult;
     });
 
     this.commands.set('contact', (args) => {
@@ -131,18 +166,24 @@ export class PortfolioCommands {
 
       return {
         lines: [
-          'Contact Information:',
-          `  Email: ${contactInfo.email}`,
-          `  GitHub: ${contactInfo.github}`,
+          '',
+          '╔══════════════════════════════════════════════════════╗',
+          '║                   CONTACT INFO                       ║',
+          '╚══════════════════════════════════════════════════════╝',
+          '',
+          `  Email:    ${contactInfo.email}`,
+          `  GitHub:   ${contactInfo.github}`,
           `  LinkedIn: ${contactInfo.linkedin}`,
           '',
           'Flags:',
-          '  --mail      Open mailto link',
-          '  --github    Open GitHub profile',
-          '  --linkedin  Open LinkedIn profile',
+          '  --mail        Open mailto link',
+          '  --github      Open GitHub profile',
+          '  --linkedin    Open LinkedIn profile',
           '  --copy-email  Copy email to clipboard',
-        ]
-      };
+          '',
+        ],
+        type: 'white',
+      } as CommandResult;
     });
 
     this.commands.set('clear', () => {
@@ -166,7 +207,7 @@ export class PortfolioCommands {
 
     this.commands.set('pong', () => {
       this.terminal?.startPong();
-      return { lines: ['Launching PONG... Up/Down or W/S to move. Ctrl+C to quit.'] };
+      return { lines: ['Launching PONG... Move mouse to play. Ctrl+C to quit.'] };
     });
   }
 }

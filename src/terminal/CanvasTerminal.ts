@@ -8,7 +8,7 @@ import { PongGame } from '../games/PongGame';
 
 interface TerminalLine {
   text: string;
-  type: 'output' | 'error' | 'dim' | 'prompt';
+  type: 'output' | 'error' | 'dim' | 'prompt' | 'cyan' | 'yellow' | 'magenta' | 'orange' | 'white' | 'blue';
 }
 
 type TerminalMode = 'terminal' | 'matrix' | 'snake' | 'pong';
@@ -41,6 +41,12 @@ export class CanvasTerminal {
   private readonly textColor = '#33ff33';
   private readonly dimColor = '#1a8a1a';
   private readonly errorColor = '#ff3333';
+  private readonly cyanColor = '#33ffff';
+  private readonly yellowColor = '#ffff33';
+  private readonly magentaColor = '#ff33ff';
+  private readonly orangeColor = '#ff9933';
+  private readonly whiteColor = '#ffffff';
+  private readonly blueColor = '#3388ff';
   private readonly bgColor = '#444444';
 
   // CRT effect scalers (0.0 = off, 1.0 = full)
@@ -604,9 +610,9 @@ export class CanvasTerminal {
     if (input.toLowerCase() === 'exit') {
       this.lines.push({ text: `${this.promptText} ${input}`, type: 'prompt' });
       const result = this.commandParser.parse(input);
-      const type = result.error ? 'error' : 'output';
+      const lineType = result.type ?? (result.error ? 'error' : 'output');
       for (const line of result.lines) {
-        this.lines.push({ text: line, type });
+        this.lines.push({ text: line, type: lineType });
       }
       this.shutdownPending = true;
       this.inputBuffer = '';
@@ -620,9 +626,9 @@ export class CanvasTerminal {
     if (result.clear) {
       this.lines = [];
     } else {
-      const type = result.error ? 'error' : 'output';
+      const lineType = result.type ?? (result.error ? 'error' : 'output');
       for (const line of result.lines) {
-        this.lines.push({ text: line, type });
+        this.lines.push({ text: line, type: lineType });
       }
     }
 
@@ -653,6 +659,12 @@ export class CanvasTerminal {
     switch (type) {
       case 'error': return this.errorColor;
       case 'dim': return this.dimColor;
+      case 'cyan': return this.cyanColor;
+      case 'yellow': return this.yellowColor;
+      case 'magenta': return this.magentaColor;
+      case 'orange': return this.orangeColor;
+      case 'white': return this.whiteColor;
+      case 'blue': return this.blueColor;
       default: return this.textColor;
     }
   }
